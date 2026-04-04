@@ -1,0 +1,72 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect-files.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit.sh",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/notify.sh Notification",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/notify.sh Stop",
+            "async": true
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Edit(**/package-lock.json)",
+      "Write(**/package-lock.json)",
+      "Edit(**/yarn.lock)",
+      "Write(**/yarn.lock)",
+      "Edit(**/pnpm-lock.yaml)",
+      "Write(**/pnpm-lock.yaml)",
+      "Edit(**/.env)",
+      "Write(**/.env)",
+      "Edit(**/.env.production)",
+      "Write(**/.env.production)"
+    ],
+    "default": [
+      { "behavior": "allow", "tools": ["Read", "Glob", "Grep"] },
+      { "behavior": "allow", "tools": ["Edit", "Write"] }
+    ]
+  },
+  "env": {
+    "NODE_ENV": "development",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  }
+}

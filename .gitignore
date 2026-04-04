@@ -1,12 +1,28 @@
-.env
+# Python
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 venv/
-*.egg-info/
+
+# ビルド
 dist/
 build/
-.DS_Store
+
+# データ
 data/raw/
 *.csv
 *.log
+
+# 環境変数
+.env
+.env.local
+.env.*.local
+
+# Claude Code ローカル設定（個人用、共有しない）
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,32 @@
+# Claude Code がインデックス・検索対象から除外するファイル
+# トークン節約のため、不要な大容量ファイルを除外する
+
+# 依存関係
+node_modules/
+vendor/
+.venv/
+__pycache__/
+
+# ビルド成果物
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# ログ・キャッシュ
+*.log
+*.lock
+.cache/
+coverage/
+.nyc_output/
+
+# バイナリ・メディア
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.pdf
+*.zip
+*.tar.gz
