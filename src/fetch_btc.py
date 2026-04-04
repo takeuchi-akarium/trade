@@ -29,18 +29,36 @@ INTERVALS = {
 }
 
 
-def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1d", limit: int = 365) -> pd.DataFrame:
-    """Binanceから始値・高値・安値・終値・出来高を取得"""
-    params = {"symbol": symbol, "interval": interval, "limit": limit}
+def _fetch_batch(symbol: str, interval: str, end_time_ms: int | None = None) -> list:
+    """1000本ずつ取得（ページネーション用）"""
+    params = {"symbol": symbol, "interval": interval, "limit": 1000}
+    if end_time_ms:
+        params["endTime"] = end_time_ms
     resp = requests.get(BINANCE_API, params=params, timeout=10)
     resp.raise_for_status()
+    return resp.json()
 
-    raw = resp.json()
-    df = pd.DataFrame(raw, columns=[
+
+def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1d", years: int = 1) -> pd.DataFrame:
+    """Binanceから指定年数分のOHLCVデータを取得（ページネーション対応）"""
+    all_raw = []
+    end_time_ms = None
+
+    # 1000本 × 必要バッチ数を取得
+    batches_needed = -(-( years * 365) // 1000)  # 切り上げ除算
+    for _ in range(batches_needed):
+        batch = _fetch_batch(symbol, interval, end_time_ms)
+        if not batch:
+            break
+        all_raw = batch + all_raw
+        end_time_ms = batch[0][0] - 1  # 最古の足の1ms前
+
+    df = pd.DataFrame(all_raw, columns=[
         "open_time", "open", "high", "low", "close", "volume",
         "close_time", "quote_volume", "trades",
         "taker_buy_base", "taker_buy_quote", "ignore"
     ])
+    df = df.drop_duplicates("open_time").sort_values("open_time")
 
     df["datetime"] = pd.to_datetime(df["open_time"], unit="ms")
     for col in ["open", "high", "low", "close", "volume"]:
@@ -78,12 +96,13 @@ def plot_chart(df: pd.DataFrame, title: str = "BTC/USDT") -> None:
 
 
 if __name__ == "__main__":
-    print("BTC/USDT 日足データを取得中...")
-    df = fetch_ohlcv(symbol="BTCUSDT", interval="1d", limit=365)
+    YEARS = 3
+    print(f"BTC/USDT 日足データを取得中（過去{YEARS}年分）...")
+    df = fetch_ohlcv(symbol="BTCUSDT", interval="1d", years=YEARS)
 
-    print(f"\n取得件数: {len(df)} 本")
+    print(f"取得件数: {len(df)} 本")
     print(f"期間: {df.index[0].date()} 〜 {df.index[-1].date()}")
     print(f"\n最新値:\n{df.tail(3)}")
 
     save_csv(df, "data/btc_1d.csv")
-    plot_chart(df, "BTC/USDT 日足 (過去365日)")
+    plot_chart(df, f"BTC/USDT 日足 (過去{YEARS}年)")
