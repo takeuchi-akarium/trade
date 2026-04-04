@@ -39,13 +39,18 @@ def _fetch_batch(symbol: str, interval: str, end_time_ms: int | None = None) -> 
     return resp.json()
 
 
+CANDLES_PER_YEAR = {
+    "1m": 525_600, "5m": 105_120, "15m": 35_040,
+    "1h": 8_760, "4h": 2_190, "1d": 365,
+}
+
 def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1d", years: int = 1) -> pd.DataFrame:
     """Binanceから指定年数分のOHLCVデータを取得（ページネーション対応）"""
     all_raw = []
     end_time_ms = None
 
-    # 1000本 × 必要バッチ数を取得
-    batches_needed = -(-( years * 365) // 1000)  # 切り上げ除算
+    candles_needed = CANDLES_PER_YEAR.get(interval, 365) * years
+    batches_needed = -(- candles_needed // 1000)  # 切り上げ除算
     for _ in range(batches_needed):
         batch = _fetch_batch(symbol, interval, end_time_ms)
         if not batch:
