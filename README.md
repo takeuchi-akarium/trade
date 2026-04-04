@@ -1,45 +1,39 @@
-# Claude Code テンプレート
+# trade
 
-新しいプロジェクトに `.claude/` と `CLAUDE.md` をコピーして使う Claude Code 設定テンプレート。
+BTC（暗号資産）および日本株を対象とした自動売買システム。
+バックテスト → ペーパートレード → 本番自動売買の順に段階的に構築する。
+
+## セットアップ
+
+```bash
+python -m venv .venv
+.venv/Scripts/activate
+pip install -r requirements.txt
+```
 
 ## 使い方
 
 ```bash
-TEMPLATE=/path/to/template
-PROJECT=/your/project
+# BTCデータ取得（Binance公開API、口座不要）
+python src/fetch_btc.py
 
-cp -r $TEMPLATE/.claude $PROJECT/
-cp $TEMPLATE/CLAUDE.md $PROJECT/
-
-chmod +x $PROJECT/.claude/hooks/*.sh
+# バックテスト（移動平均クロス戦略）
+python src/backtest.py
 ```
 
-コピー後、`CLAUDE.md` の TODO 部分をプロジェクトに合わせて書き換える。
-
-## ファイル構成
+## 構成
 
 ```
-.claude/
-├── settings.json          # フック・権限・環境変数の設定
-├── rules/
-│   ├── general.md         # 一般的なコーディングルール
-│   └── security.md        # セキュリティルール
-├── skills/
-│   ├── commit/            # /commit: コミットメッセージ生成
-│   ├── review/            # /review: コードレビュー
-│   └── ship/              # /ship: レビュー→コミット→PR作成
-├── agents/
-│   └── researcher/        # researcher エージェント
-└── hooks/
-    ├── protect-files.sh   # 保護ファイルへの書き込みブロック
-    ├── post-edit.sh       # 編集後の自動フォーマット
-    └── notify.sh          # タスク完了・入力待ちの通知
-CLAUDE.md                  # プロジェクト概要・ルール・スキル一覧
+src/
+├── fetch_btc.py   # データ取得
+└── backtest.py    # バックテスト
+data/              # 取得データ（.gitignore対象）
 ```
 
-## カスタマイズ
+## ロードマップ
 
-- `settings.json`: 保護ファイルリスト・ツール権限を調整
-- `hooks/protect-files.sh`: `PROTECTED_PATTERNS` に保護したいファイルを追加
-- `hooks/post-edit.sh`: 使用するフォーマッターを変更
-- `rules/*.md`: プロジェクトのコーディング規約に合わせて編集
+- [x] データ取得（Binance公開API）
+- [x] バックテスト（移動平均クロス）
+- [ ] パラメータ最適化
+- [ ] 複数戦略の比較
+- [ ] 本番自動売買
