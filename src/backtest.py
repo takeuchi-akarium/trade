@@ -6,17 +6,9 @@
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import matplotlib.font_manager as fm
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from pathlib import Path
-
-# Windows日本語フォント設定
-_jp_fonts = ["MS Gothic", "Yu Gothic", "Meiryo", "BIZ UDGothic"]
-for _f in _jp_fonts:
-    if any(_f.lower() in x.name.lower() for x in fm.fontManager.ttflist):
-        plt.rcParams["font.family"] = _f
-        break
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -104,42 +96,65 @@ def calc_metrics(df: pd.DataFrame, trades: list, initial_capital: float, final_v
     }
 
 
-def plot_result(df: pd.DataFrame, trades: list, short: int, long: int) -> None:
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 9), gridspec_kw={"height_ratios": [3, 1]})
-    fig.suptitle(f"BTC/USDT 移動平均クロス戦略 (MA{short} / MA{long})", fontsize=13)
+def plot_result(df: pd.DataFrame, trades: list, short: int, long: int, output: str = "chart.html") -> None:
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        row_heights=[0.75, 0.25],
+        subplot_titles=[f"BTC/USDT 移動平均クロス戦略 (MA{short} / MA{long})", "シグナル"],
+        vertical_spacing=0.05,
+    )
 
-    # 価格とMA
-    ax1.plot(df.index, df["close"], color="gray", linewidth=1, label="終値", alpha=0.8)
-    ax1.plot(df.index, df["ma_short"], color="royalblue", linewidth=1.5, label=f"MA{short}")
-    ax1.plot(df.index, df["ma_long"], color="tomato", linewidth=1.5, label=f"MA{long}")
+    # ローソク足
+    fig.add_trace(go.Candlestick(
+        x=df.index, open=df["open"], high=df["high"], low=df["low"], close=df["close"],
+        name="BTC/USDT", increasing_line_color="limegreen", decreasing_line_color="tomato",
+    ), row=1, col=1)
 
-    # 売買ポイント
+    # 移動平均線
+    fig.add_trace(go.Scatter(x=df.index, y=df["ma_short"], name=f"MA{short}",
+                             line=dict(color="royalblue", width=1.5)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["ma_long"], name=f"MA{long}",
+                             line=dict(color="orange", width=1.5)), row=1, col=1)
+
+    # 買いポイント
     buys = [t for t in trades if t["type"] == "buy"]
-    sells = [t for t in trades if t["type"] == "sell"]
-    ax1.scatter([t["datetime"] for t in buys], [t["price"] for t in buys],
-                marker="^", color="limegreen", s=120, zorder=5, label="買い")
-    ax1.scatter([t["datetime"] for t in sells], [t["price"] for t in sells],
-                marker="v", color="red", s=120, zorder=5, label="売り")
+    fig.add_trace(go.Scatter(
+        x=[t["datetime"] for t in buys], y=[t["price"] for t in buys],
+        mode="markers", name="買い",
+        marker=dict(symbol="triangle-up", size=14, color="limegreen", line=dict(width=1, color="darkgreen")),
+        hovertemplate="%{x}<br>買い: $%{y:,.0f}<extra></extra>",
+    ), row=1, col=1)
 
-    ax1.set_ylabel("Price (USDT)")
-    ax1.legend(loc="upper left")
-    ax1.grid(True, alpha=0.3)
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    # 売りポイント
+    sells = [t for t in trades if t["type"] == "sell"]
+    fig.add_trace(go.Scatter(
+        x=[t["datetime"] for t in sells], y=[t["price"] for t in sells],
+        mode="markers", name="売り",
+        marker=dict(symbol="triangle-down", size=14, color="red", line=dict(width=1, color="darkred")),
+        hovertemplate="%{x}<br>売り: $%{y:,.0f}<br>損益: %{customdata:+,.0f} USDT<extra></extra>",
+        customdata=[t["pnl"] for t in sells],
+    ), row=1, col=1)
 
     # シグナル
-    ax2.plot(df.index, df["signal"], color="purple", linewidth=1)
-    ax2.axhline(0, color="black", linewidth=0.8, linestyle="--")
-    ax2.fill_between(df.index, df["signal"], 0, where=df["signal"] > 0, alpha=0.3, color="green")
-    ax2.fill_between(df.index, df["signal"], 0, where=df["signal"] < 0, alpha=0.3, color="red")
-    ax2.set_ylabel("シグナル")
-    ax2.set_yticks([-1, 0, 1])
-    ax2.set_yticklabels(["売り", "-", "買い"])
-    ax2.grid(True, alpha=0.3)
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df["signal"], name="シグナル",
+        fill="tozeroy", line=dict(color="purple", width=1),
+        fillcolor="rgba(128,0,128,0.15)",
+    ), row=2, col=1)
 
-    fig.autofmt_xdate()
-    plt.tight_layout()
-    plt.show()
+    fig.update_layout(
+        height=700,
+        xaxis_rangeslider_visible=False,
+        template="plotly_dark",
+        hovermode="x unified",
+    )
+    fig.update_yaxes(title_text="Price (USDT)", row=1, col=1)
+    fig.update_yaxes(title_text="Signal", row=2, col=1)
+
+    out_path = Path("data") / output
+    fig.write_html(str(out_path), auto_open=True)
+    print(f"チャート保存: {out_path}")
 
 
 if __name__ == "__main__":
