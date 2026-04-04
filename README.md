@@ -25,15 +25,16 @@ python src/backtest.py
 
 ```
 src/
-├── fetch_btc.py   # データ取得
-└── backtest.py    # バックテスト
-data/              # 取得データ（.gitignore対象）
+├── fetch_btc.py   # データ取得（日足・1時間足、ページネーション対応）
+├── backtest.py    # バックテスト（MAクロス戦略、HTMLチャート出力）
+└── optimize.py    # MAパラメータ最適化（グリッドサーチ）
+data/              # 取得データ・チャート（.gitignore対象）
 ```
 
 ## ロードマップ
 
 - [x] データ取得（Binance公開API）
 - [x] バックテスト（移動平均クロス）
-- [ ] パラメータ最適化
+- [x] パラメータ最適化（グリッドサーチ、ヒートマップ）
 - [ ] 複数戦略の比較
 - [ ] 本番自動売買
