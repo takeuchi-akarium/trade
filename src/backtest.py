@@ -158,8 +158,8 @@ def plot_result(df: pd.DataFrame, trades: list, short: int, long: int, output: s
 
 
 if __name__ == "__main__":
-    SHORT_MA = 25
-    LONG_MA = 75
+    SHORT_MA = 5
+    LONG_MA = 150
     INITIAL_CAPITAL = 100_000  # USDT（or 円）
 
     print(f"=== MA{SHORT_MA} / MA{LONG_MA} バックテスト ===\n")
