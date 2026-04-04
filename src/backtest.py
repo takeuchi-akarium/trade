@@ -192,8 +192,51 @@ def plot_result(df: pd.DataFrame, trades: list, short: int, long: int, initial_c
     fig.update_yaxes(title_text="利益率 (%)", row=2, col=1)
     fig.update_yaxes(title_text="Signal", row=3, col=1)
 
+    # 任意の開始日から利益率を再計算するJavaScript
+    # ズームやレンジ変更時に利益率パネルを開始点=0%に再正規化する
+    dates_js = [str(d) for d in df.index]
+    equity_js = equity_pct.tolist()
+    bnh_js = bnh_pct.tolist()
+
+    # BnH=trace[5], 戦略=trace[6]
+    post_script = f"""
+var _dates = {dates_js};
+var _equity = {equity_js};
+var _bnh = {bnh_js};
+
+function findStartIdx(xStart) {{
+    for (var i = 0; i < _dates.length; i++) {{
+        if (_dates[i] >= xStart) return i;
+    }}
+    return 0;
+}}
+
+function renormalize(xStart) {{
+    var idx = findStartIdx(xStart);
+    var eBase = _equity[idx];
+    var bBase = _bnh[idx];
+    var gd = document.querySelector('.plotly-graph-div');
+    Plotly.restyle(gd, {{y: [_bnh.map(function(v){{return v - bBase;}})]}}, [5]);
+    Plotly.restyle(gd, {{y: [_equity.map(function(v){{return v - eBase;}})]}}, [6]);
+}}
+
+var gd = document.querySelector('.plotly-graph-div');
+gd.on('plotly_relayout', function(e) {{
+    var xStart = null;
+    if (e['xaxis.range[0]']) xStart = e['xaxis.range[0]'];
+    else if (e['xaxis.range']) xStart = e['xaxis.range'][0];
+    if (xStart) renormalize(xStart);
+    else {{
+        // 全体表示に戻ったとき
+        var gd2 = document.querySelector('.plotly-graph-div');
+        Plotly.restyle(gd2, {{y: [_bnh]}}, [5]);
+        Plotly.restyle(gd2, {{y: [_equity]}}, [6]);
+    }}
+}});
+"""
+
     out_path = Path("data") / output
-    fig.write_html(str(out_path), auto_open=True)
+    fig.write_html(str(out_path), auto_open=True, post_script=post_script)
     print(f"チャート保存: {out_path}")
 
 
