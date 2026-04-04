@@ -96,13 +96,38 @@ def calc_metrics(df: pd.DataFrame, trades: list, initial_capital: float, final_v
     }
 
 
-def plot_result(df: pd.DataFrame, trades: list, short: int, long: int, output: str = "chart.html") -> None:
+def calc_equity_curve(df: pd.DataFrame, trades: list, initial_capital: float) -> pd.Series:
+    """時系列の資産推移（%）を計算"""
+    capital = initial_capital
+    holding = 0.0
+    equity = []
+    buy_map = {t["datetime"]: t for t in trades if t["type"] == "buy"}
+    sell_map = {t["datetime"]: t for t in trades if t["type"] == "sell"}
+
+    for dt, row in df.iterrows():
+        if dt in buy_map:
+            holding = capital / row["close"]
+            capital = 0
+        elif dt in sell_map and holding > 0:
+            capital = holding * row["close"]
+            holding = 0
+        val = capital if holding == 0 else holding * row["close"]
+        equity.append(val)
+
+    s = pd.Series(equity, index=df.index)
+    return (s / initial_capital - 1) * 100
+
+
+def plot_result(df: pd.DataFrame, trades: list, short: int, long: int, initial_capital: float = 100_000, output: str = "chart.html") -> None:
+    equity_pct = calc_equity_curve(df, trades, initial_capital)
+    bnh_pct = (df["close"] / df["close"].iloc[0] - 1) * 100
+
     fig = make_subplots(
-        rows=2, cols=1,
+        rows=3, cols=1,
         shared_xaxes=True,
-        row_heights=[0.75, 0.25],
-        subplot_titles=[f"BTC/USDT 移動平均クロス戦略 (MA{short} / MA{long})", "シグナル"],
-        vertical_spacing=0.05,
+        row_heights=[0.55, 0.25, 0.20],
+        subplot_titles=[f"BTC/USDT 移動平均クロス戦略 (MA{short} / MA{long})", "利益率 (%)", "シグナル"],
+        vertical_spacing=0.04,
     )
 
     # ローソク足
@@ -136,21 +161,36 @@ def plot_result(df: pd.DataFrame, trades: list, short: int, long: int, output: s
         customdata=[t["pnl"] for t in sells],
     ), row=1, col=1)
 
+    # 利益率（戦略 vs バイアンドホールド）
+    fig.add_trace(go.Scatter(
+        x=df.index, y=bnh_pct, name="バイアンドホールド",
+        line=dict(color="gray", width=1.2, dash="dash"),
+        hovertemplate="%{x}<br>BnH: %{y:.1f}%<extra></extra>",
+    ), row=2, col=1)
+    fig.add_trace(go.Scatter(
+        x=df.index, y=equity_pct, name="戦略リターン",
+        fill="tozeroy", line=dict(color="gold", width=1.5),
+        fillcolor="rgba(255,215,0,0.1)",
+        hovertemplate="%{x}<br>戦略: %{y:.1f}%<extra></extra>",
+    ), row=2, col=1)
+    fig.add_hline(y=0, line=dict(color="white", width=0.5, dash="dot"), row=2, col=1)
+
     # シグナル
     fig.add_trace(go.Scatter(
         x=df.index, y=df["signal"], name="シグナル",
         fill="tozeroy", line=dict(color="purple", width=1),
         fillcolor="rgba(128,0,128,0.15)",
-    ), row=2, col=1)
+    ), row=3, col=1)
 
     fig.update_layout(
-        height=700,
+        height=800,
         xaxis_rangeslider_visible=False,
         template="plotly_dark",
         hovermode="x unified",
     )
     fig.update_yaxes(title_text="Price (USDT)", row=1, col=1)
-    fig.update_yaxes(title_text="Signal", row=2, col=1)
+    fig.update_yaxes(title_text="利益率 (%)", row=2, col=1)
+    fig.update_yaxes(title_text="Signal", row=3, col=1)
 
     out_path = Path("data") / output
     fig.write_html(str(out_path), auto_open=True)
@@ -178,4 +218,4 @@ if __name__ == "__main__":
         pnl_str = f"  損益: {t['pnl']:+.0f} USDT" if t["type"] == "sell" else ""
         print(f"{mark}  {t['datetime'].date()}  ${t['price']:,.0f}{pnl_str}")
 
-    plot_result(df, trades, SHORT_MA, LONG_MA)
+    plot_result(df, trades, SHORT_MA, LONG_MA, initial_capital=INITIAL_CAPITAL)
