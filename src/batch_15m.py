@@ -15,6 +15,7 @@ import json
 from datetime import datetime
 from common.config_loader import load_config
 from common.notifier import notify
+from common.logger import log, cleanup
 from signals.aggregator import collect_and_score, to_signal
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -37,10 +38,7 @@ def run() -> None:
         sell_threshold=sig_cfg.get("sell_threshold", -30),
     )
 
-    print(f"スコア: {total:+d}  →  シグナル: {signal}")
-    for k, v in result["details"].items():
-        score_str = f"{result['scores'][k]:+d}" if k in result["scores"] else "N/A"
-        print(f"  {k:<15}: {v:<25} (score: {score_str})")
+    log("15m_signal", f"score:{total:+d} signal:{signal}")
 
     # シグナルが変化したときだけ通知
     prev_signal = _load_prev_signal()
@@ -53,8 +51,9 @@ def run() -> None:
         message = "\n".join(lines)
         print("\n通知送信中...")
         notify(message, config)
+        log("15m_signal", f"notify: {prev_signal} -> {signal}")
     else:
-        print("(シグナル変化なし → 通知スキップ)")
+        log("15m_signal", "no change")
 
     # 最新シグナルを保存
     LATEST_SIGNAL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -72,7 +71,7 @@ def run() -> None:
         ),
         encoding="utf-8",
     )
-    print(f"\n最新シグナル保存: {LATEST_SIGNAL_PATH}")
+    cleanup()
 
 
 def _load_prev_signal() -> str:
