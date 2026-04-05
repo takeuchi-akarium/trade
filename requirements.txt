@@ -4,3 +4,5 @@ matplotlib
 requests
 python-dotenv
 plotly
+pyyaml
+beautifulsoup4
