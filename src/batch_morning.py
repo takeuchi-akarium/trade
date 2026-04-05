@@ -24,36 +24,32 @@ from common.logger import log, cleanup
 # ── BTC セクション ──────────────────────────────────
 
 def buildBtcSection():
-  """Binance APIで前日のBTC OHLC を取得してレポート文字列を返す"""
+  """CoinGecko APIでBTC価格情報を取得してレポート文字列を返す"""
   try:
-    # 前日の日足を取得
-    jst = timezone(timedelta(hours=9))
-    today = datetime.now(jst).replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday = today - timedelta(days=1)
-
     resp = requests.get(
-      "https://api.binance.com/api/v3/klines",
+      "https://api.coingecko.com/api/v3/coins/bitcoin",
       params={
-        "symbol": "BTCUSDT",
-        "interval": "1d",
-        "startTime": int(yesterday.timestamp() * 1000),
-        "limit": 1,
+        "localization": "false",
+        "tickers": "false",
+        "community_data": "false",
+        "developer_data": "false",
       },
+      headers={"User-Agent": "Mozilla/5.0"},
       timeout=10,
     )
     resp.raise_for_status()
-    data = resp.json()
-    if not data:
-      return "  データなし"
+    md = resp.json().get("market_data", {})
 
-    k = data[0]
-    o, h, l, c = float(k[1]), float(k[2]), float(k[3]), float(k[4])
-    chg = (c - o) / o * 100
+    price = md.get("current_price", {}).get("usd", 0)
+    chg = md.get("price_change_percentage_24h", 0)
+    high = md.get("high_24h", {}).get("usd", 0)
+    low = md.get("low_24h", {}).get("usd", 0)
     sign = "+" if chg >= 0 else ""
 
     lines = []
-    lines.append(f"  始値: ${o:,.0f} -> 終値: ${c:,.0f} ({sign}{chg:.1f}%)")
-    lines.append(f"  高値: ${h:,.0f} / 安値: ${l:,.0f}")
+    lines.append(f"  現在値: ${price:,.0f} ({sign}{chg:.1f}%)")
+    if high and low:
+      lines.append(f"  24h高値: ${high:,.0f} / 安値: ${low:,.0f}")
     return "\n".join(lines)
   except Exception as e:
     return f"  取得失敗: {e}"
@@ -124,7 +120,7 @@ def buildRssSection(config):
     lines = []
     for item, score, matched in scored[:5]:
       icon = "+" if score > 0 else "-"
-      lines.append(f"  [{icon}{abs(score)}] {item['title']} ({item['source']})")
+      lines.append(f"  [{icon}{abs(score)}] {item['title']} ({item['source']})\n    {item['url']}")
     return "\n".join(lines)
   except Exception as e:
     return f"  取得失敗: {e}"
@@ -168,7 +164,7 @@ def buildTdnetSection(config):
     for item, score, matched in scored[:5]:
       icon = "+" if score > 0 else "-"
       kwStr = "/".join(matched) if matched else ""
-      lines.append(f"  [{icon}{abs(score)}] {item['code']} {item['name']} {kwStr}")
+      lines.append(f"  [{icon}{abs(score)}] {item['code']} {item['name']} {kwStr}\n    {item['url']}")
     return "\n".join(lines)
   except Exception as e:
     return f"  取得失敗: {e}"
