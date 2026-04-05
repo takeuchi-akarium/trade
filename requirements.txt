@@ -6,3 +6,5 @@ python-dotenv
 plotly
 pyyaml
 beautifulsoup4
+yfinance
+anthropic
