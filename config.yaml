@@ -1,0 +1,47 @@
+# シグナル・通知設定
+notifications:
+  discord:
+    enabled: true
+    webhook_url: "${DISCORD_WEBHOOK_URL}"
+  log_file:
+    enabled: true
+    path: "data/signals/signal_log.tsv"
+  line:
+    enabled: false
+    token: "${LINE_TOKEN}"
+
+signal:
+  buy_threshold: 30    # +30以上でBUY
+  sell_threshold: -30  # -30以下でSELL
+
+  # 各ソースの重み（合計が100になるよう設定）
+  weights:
+    fear_greed: 1.0
+    vix: 1.0
+
+# TDnet適時開示設定
+tdnet:
+  enabled: true
+  categories:
+    - 決算
+    - 配当
+    - 業績修正
+  score_threshold: 40   # この絶対値以上のスコアのみ通知
+
+# RSSニュース設定
+rss:
+  enabled: true
+  feeds:
+    # 日本語 - 速報性高い順
+    - url: "https://news.yahoo.co.jp/rss/topics/business.xml"
+      name: "Yahoo!ビジネス"
+    - url: "https://www3.nhk.or.jp/rss/news/cat7.xml"
+      name: "NHK経済"
+    - url: "https://assets.wor.jp/rss/rdf/nikkei/news.rdf"
+      name: "日経速報"
+    # 海外 - マーケット速報
+    - url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+      name: "CNBC Finance"
+    - url: "https://feeds.marketwatch.com/marketwatch/topstories/"
+      name: "MarketWatch"
+  score_threshold: 30   # この絶対値以上のスコアのみ通知
