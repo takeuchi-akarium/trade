@@ -5,6 +5,7 @@
 全期間(バックテスト用) と 本日分のみ(バッチ用) の2つのモードを提供。
 """
 
+import math
 import numpy as np
 import pandas as pd
 
@@ -277,10 +278,16 @@ def generateTodaySignal(aligned, lam=LAMBDA_REG, k=NUM_FACTORS, window=ROLLING_W
   else:
     enhanced = jpPredicted
 
+  # 確信度: シグナル分散 (ロング上位 - ショート下位の平均スコア差)
+  nLong = max(1, math.ceil(len(JP_TICKERS) * 0.3))
+  ranked = np.sort(enhanced)[::-1]
+  sigSpread = float(np.mean(ranked[:nLong]) - np.mean(ranked[-nLong:]))
+
   return {
     "date": validData.index[-1],
     "signals": dict(zip(JP_TICKERS, enhanced.tolist())),
     "signalsRaw": dict(zip(JP_TICKERS, jpPredicted.tolist())),
     "factorScores": factorScores.tolist(),
     "usReturns": dict(zip(US_TICKERS, usRaw.tolist())),
+    "confidence": sigSpread,
   }

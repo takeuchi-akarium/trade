@@ -35,6 +35,21 @@ def buildReport(positions, todaySignal, runningMetrics, aiComment=None):
   lines.append(f"=== 日米リードラグ シグナル {dateStr} ===")
   lines.append("")
 
+  # 確信度
+  confidence = todaySignal.get("confidence", None)
+  if confidence is not None:
+    if confidence >= 1.3:
+      level = "高"
+      advice = "通常通りエントリー"
+    elif confidence >= 0.9:
+      level = "中"
+      advice = "ポジション控えめ推奨"
+    else:
+      level = "低"
+      advice = "様子見推奨"
+    lines.append(f"■ 確信度: {level} ({confidence:.2f}) — {advice}")
+    lines.append("")
+
   # ロングポジション
   lines.append("■ 本日の推奨ポジション")
   lines.append("【ロング（寄付き買い→引け売り）】")
