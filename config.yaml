@@ -45,3 +45,15 @@ rss:
     - url: "https://feeds.marketwatch.com/marketwatch/topstories/"
       name: "MarketWatch"
   score_threshold: 30   # この絶対値以上のスコアのみ通知
+
+# 日米リードラグ戦略設定
+leadlag:
+  rolling_window: 60      # ローリングウィンドウ (営業日)
+  lambda_reg: 0.9         # 正則化パラメータ (0=サンプルのみ, 1=事前のみ)
+  num_factors: 3          # 共通ファクター数
+  quantile_cutoff: 0.3    # ロング/ショート閾値 (上下30%)
+  backtest_start: "2015-01-01"
+  backtest_end: "2025-12-31"
+  c_full_start: "2010-01-01"
+  c_full_end: "2014-12-31"
+  ai_comment: true

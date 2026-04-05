@@ -10,7 +10,7 @@ dist/
 build/
 
 # データ
-data/raw/
+data/
 *.csv
 *.log
 
