@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import requests
 from datetime import datetime
+from common.logger import log, cleanup
 
 BINANCE_PRICE_URL = "https://api.binance.com/api/v3/ticker/price"
 
@@ -25,12 +26,12 @@ def get_btc_price() -> float:
 
 
 def run() -> None:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         price = get_btc_price()
-        print(f"[{now}] BTC: ${price:,.0f}")
+        log("5m_price", f"BTC: ${price:,.0f}")
     except Exception as e:
-        print(f"[{now}] 価格取得失敗: {e}")
+        log("5m_price", f"ERROR: {e}")
+    cleanup()
 
 
 if __name__ == "__main__":
