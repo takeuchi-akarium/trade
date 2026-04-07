@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv(ROOT / ".env")
 
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from leadlag.constants import US_TICKERS, JP_TICKERS
 from leadlag.fetch_data import fetchAllPrices, calcCcReturns, calcOcReturns
@@ -43,8 +43,10 @@ def main():
   try:
     # Step 1: データ取得 (増分更新)
     log("batch_leadlag", "データ取得中...")
-    today = datetime.now().strftime("%Y-%m-%d")
-    usPrices, jpPrices = fetchAllPrices(start="2009-01-01", end=today)
+    # yfinance の end は排他的なので翌日を指定して当日データを含める
+    jst = timezone(timedelta(hours=9))
+    tomorrow = (datetime.now(jst) + timedelta(days=1)).strftime("%Y-%m-%d")
+    usPrices, jpPrices = fetchAllPrices(start="2009-01-01", end=tomorrow)
 
     # Step 2: リターン計算 + アラインメント
     usRetCc = calcCcReturns(usPrices, US_TICKERS)

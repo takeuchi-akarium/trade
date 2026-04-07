@@ -17,6 +17,9 @@ CATEGORIES = {
     "決算": f"{BASE}/{quote('決算')}",
     "配当": f"{BASE}/{quote('配当')}",
     "業績修正": f"{BASE}/{quote('業績修正')}",
+    "買付": f"{BASE}/{quote('株式、取得・買付')}",
+    "交換": f"{BASE}/{quote('株式、交換・移転')}",
+    "買収": f"{BASE}/{quote('買収')}",
 }
 
 
