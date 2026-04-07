@@ -24,6 +24,7 @@ data/signals/*
 !data/leadlag/
 data/leadlag/*
 !data/leadlag/position_history.json
+!data/paper_state.json
 
 # 環境変数
 .env
