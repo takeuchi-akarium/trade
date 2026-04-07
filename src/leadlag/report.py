@@ -6,7 +6,7 @@ Claude APIでファクター分析に基づくAIコメントを生成。
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from leadlag.constants import US_SECTOR_NAMES, JP_SECTOR_NAMES
 
@@ -24,15 +24,23 @@ def buildReport(positions, todaySignal, runningMetrics, aiComment=None):
   Returns:
     str: レポート文字列
   """
+  # 実行日 (JST) をヘッダーに表示
+  jst = timezone(timedelta(hours=9))
+  now = datetime.now(jst)
+  weekdays = ["月", "火", "水", "木", "金", "土", "日"]
+  execDateStr = f"{now.strftime('%Y-%m-%d')}({weekdays[now.weekday()]})"
+
+  # データ基準日（最終取引日）
   date = todaySignal["date"]
   if hasattr(date, "strftime"):
-    weekdays = ["月", "火", "水", "木", "金", "土", "日"]
-    dateStr = f"{date.strftime('%Y-%m-%d')}({weekdays[date.weekday()]})"
+    dataDateStr = f"{date.strftime('%Y-%m-%d')}({weekdays[date.weekday()]})"
   else:
-    dateStr = str(date)
+    dataDateStr = str(date)
 
   lines = []
-  lines.append(f"=== 日米リードラグ シグナル {dateStr} ===")
+  lines.append(f"=== 日米リードラグ シグナル {execDateStr} ===")
+  if execDateStr != dataDateStr:
+    lines.append(f"  （データ基準日: {dataDateStr}）")
   lines.append("")
 
   # 確信度
