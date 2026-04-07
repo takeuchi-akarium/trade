@@ -63,17 +63,23 @@ def buildReport(positions, todaySignal, runningMetrics, aiComment=None):
   lines.append("【ロング（寄付き買い→引け売り）】")
   for p in positions["long"]:
     score = f"+{p['score']:.4f}" if p['score'] >= 0 else f"{p['score']:.4f}"
-    prevRet = p.get("prevReturn")
-    retStr = f" (前日比 {prevRet:+.2f}%)" if prevRet is not None else ""
-    lines.append(f"  {p['ticker']} {p['name']:<10s} {score}{retStr}")
+    parts = [score]
+    if p.get("prevReturn") is not None:
+      parts.append(f"{p['prevReturn']:+.2f}%")
+    if p.get("prevChange") is not None:
+      parts.append(f"{p['prevChange']:+.1f}円")
+    lines.append(f"  {p['ticker']} {p['name']:<10s} {' / '.join(parts)}")
 
   lines.append("")
   lines.append("【ショート（様子見）】")
   for p in positions["short"]:
     score = f"+{p['score']:.4f}" if p['score'] >= 0 else f"{p['score']:.4f}"
-    prevRet = p.get("prevReturn")
-    retStr = f" (前日比 {prevRet:+.2f}%)" if prevRet is not None else ""
-    lines.append(f"  {p['ticker']} {p['name']:<10s} {score}{retStr}")
+    parts = [score]
+    if p.get("prevReturn") is not None:
+      parts.append(f"{p['prevReturn']:+.2f}%")
+    if p.get("prevChange") is not None:
+      parts.append(f"{p['prevChange']:+.1f}円")
+    lines.append(f"  {p['ticker']} {p['name']:<10s} {' / '.join(parts)}")
 
   # 米国市場サマリ
   lines.append("")

@@ -64,6 +64,10 @@ data/
     └── signal_log.tsv      # シグナル変化ログ
 ```
 
+## 日米リードラグ戦略
+
+論文: [部分空間正則化付きPCAを用いた日米業種リードラグ投資戦略 (中川ら, SIG-FIN-036, 2026)](https://www.jstage.jst.go.jp/article/jsaisigtwo/2026/FIN-036/2026_76/_pdf/-char/ja)
+
 ## シグナルの見方と使い方
 
 ### 通知の内容
