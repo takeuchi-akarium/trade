@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv(ROOT / ".env")
 
+import json
 import requests
 from datetime import datetime, timedelta, timezone
 
@@ -58,7 +59,7 @@ def buildBtcSection():
 # ── マクロシグナル セクション ────────────────────────
 
 def buildMacroSection(config):
-  """マクロ指標を収集してレポート文字列を返す"""
+  """マクロ指標を収集してレポート文字列を返す。latest_signal.json も更新する"""
   try:
     from signals.aggregator import collect_and_score, to_signal
     sigCfg = config.get("signal", {})
@@ -68,6 +69,20 @@ def buildMacroSection(config):
       total,
       buy_threshold=sigCfg.get("buy_threshold", 30),
       sell_threshold=sigCfg.get("sell_threshold", -30),
+    )
+
+    # ダッシュボード用に latest_signal.json を更新
+    signalPath = ROOT / "data" / "signals" / "latest_signal.json"
+    signalPath.parent.mkdir(parents=True, exist_ok=True)
+    signalPath.write_text(
+      json.dumps({
+        "signal": signal,
+        "total": total,
+        "scores": result["scores"],
+        "details": result["details"],
+        "updated_at": datetime.now(timezone(timedelta(hours=9))).isoformat(),
+      }, indent=2, ensure_ascii=False),
+      encoding="utf-8",
     )
 
     icon = {"BUY": "強気", "SELL": "弱気"}.get(signal, "中立")
