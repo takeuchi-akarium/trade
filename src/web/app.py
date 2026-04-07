@@ -19,7 +19,7 @@ import requests
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, send_from_directory, jsonify
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -165,7 +165,7 @@ def loadBtcPriceHistory(days=30):
 
 @app.route("/")
 def index():
-  return render_template("index.html")
+  return send_from_directory(ROOT / "docs", "index.html")
 
 
 @app.route("/api/dashboard")

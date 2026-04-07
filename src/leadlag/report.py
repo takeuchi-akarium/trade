@@ -63,13 +63,17 @@ def buildReport(positions, todaySignal, runningMetrics, aiComment=None):
   lines.append("【ロング（寄付き買い→引け売り）】")
   for p in positions["long"]:
     score = f"+{p['score']:.4f}" if p['score'] >= 0 else f"{p['score']:.4f}"
-    lines.append(f"  {p['ticker']} {p['name']:<10s} {score}")
+    prevRet = p.get("prevReturn")
+    retStr = f" (前日比 {prevRet:+.2f}%)" if prevRet is not None else ""
+    lines.append(f"  {p['ticker']} {p['name']:<10s} {score}{retStr}")
 
   lines.append("")
   lines.append("【ショート（様子見）】")
   for p in positions["short"]:
     score = f"+{p['score']:.4f}" if p['score'] >= 0 else f"{p['score']:.4f}"
-    lines.append(f"  {p['ticker']} {p['name']:<10s} {score}")
+    prevRet = p.get("prevReturn")
+    retStr = f" (前日比 {prevRet:+.2f}%)" if prevRet is not None else ""
+    lines.append(f"  {p['ticker']} {p['name']:<10s} {score}{retStr}")
 
   # 米国市場サマリ
   lines.append("")
