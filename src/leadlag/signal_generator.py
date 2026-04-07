@@ -283,11 +283,16 @@ def generateTodaySignal(aligned, lam=LAMBDA_REG, k=NUM_FACTORS, window=ROLLING_W
   ranked = np.sort(enhanced)[::-1]
   sigSpread = float(np.mean(ranked[:nLong]) - np.mean(ranked[-nLong:]))
 
+  # 日本セクターの前日CCリターン (前日比)
+  latestJpDate = jpCcData.index[-1]
+  jpReturns = jpCcData.loc[latestJpDate, JP_TICKERS].to_dict()
+
   return {
     "date": validData.index[-1],
     "signals": dict(zip(JP_TICKERS, enhanced.tolist())),
     "signalsRaw": dict(zip(JP_TICKERS, jpPredicted.tolist())),
     "factorScores": factorScores.tolist(),
     "usReturns": dict(zip(US_TICKERS, usRaw.tolist())),
+    "jpReturns": jpReturns,
     "confidence": sigSpread,
   }

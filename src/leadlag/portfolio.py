@@ -154,17 +154,19 @@ def selectPositions(todaySignal, q=QUANTILE_CUTOFF):
     }
   """
   signals = todaySignal["signals"]
+  jpReturns = todaySignal.get("jpReturns", {})
   ranked = sorted(signals.items(), key=lambda x: x[1], reverse=True)
   nLong = max(1, math.ceil(len(ranked) * q))
 
-  longPos = [
-    {"ticker": t, "name": JP_SECTOR_NAMES.get(t, t), "score": round(s, 4)}
-    for t, s in ranked[:nLong]
-  ]
-  shortPos = [
-    {"ticker": t, "name": JP_SECTOR_NAMES.get(t, t), "score": round(s, 4)}
-    for t, s in ranked[-nLong:]
-  ]
+  def buildPos(ticker, score):
+    pos = {"ticker": ticker, "name": JP_SECTOR_NAMES.get(ticker, ticker), "score": round(score, 4)}
+    ret = jpReturns.get(ticker)
+    if ret is not None and not (isinstance(ret, float) and math.isnan(ret)):
+      pos["prevReturn"] = round(ret * 100, 2)
+    return pos
+
+  longPos = [buildPos(t, s) for t, s in ranked[:nLong]]
+  shortPos = [buildPos(t, s) for t, s in ranked[-nLong:]]
 
   return {"long": longPos, "short": shortPos}
 
