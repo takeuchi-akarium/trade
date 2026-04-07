@@ -276,9 +276,41 @@
   .guide .step-next { color: var(--muted); }
 
   @media (max-width: 900px) {
-    .columns { grid-template-columns: 1fr; }
-    .left { border-right: none; border-bottom: 1px solid var(--border); max-height: 50vh; }
-    html, body { overflow: auto; }
+    html, body { overflow: auto; height: auto; }
+    body { display: block; }
+    .columns {
+      display: flex;
+      flex-direction: column;
+      min-height: auto;
+    }
+    .left {
+      border-right: none;
+      overflow-y: visible;
+      padding: 10px;
+      gap: 8px;
+    }
+    .top-split {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    #macroCard { flex: initial; }
+    .macro-row { gap: 8px; }
+    .macro-score { font-size: 20px; }
+    .signal-badge { font-size: 14px; padding: 3px 10px; }
+    .btc-price { font-size: 20px; }
+    .btc-change { font-size: 14px; }
+    .paper-row { gap: 12px; }
+    .paper-item .val { font-size: 16px; }
+    .ll-pill { font-size: 12px; padding: 2px 7px; }
+    .right {
+      padding: 10px;
+      min-height: 400px;
+    }
+    .log-scroll { padding: 4px 10px; }
+    .log-item { font-size: 12px; padding: 6px 0; }
+    .log-ts { min-width: 70px; font-size: 11px; }
+    .log-details { padding-left: 70px; font-size: 11px; }
+    .guide { padding: 8px 10px; }
   }
 </style>
 </head>
