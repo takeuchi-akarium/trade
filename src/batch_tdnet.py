@@ -43,7 +43,7 @@ def run(dry_run: bool = False) -> None:
         print("tdnet.enabled = false のためスキップ")
         return
 
-    categories = tdnet_cfg.get("categories", ["決算", "配当", "業績修正"])
+    categories = tdnet_cfg.get("categories", ["決算", "配当", "業績修正", "買付", "交換", "買収"])
     threshold = tdnet_cfg.get("score_threshold", 40)
 
     items = fetch_disclosures(categories)

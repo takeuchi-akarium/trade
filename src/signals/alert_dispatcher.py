@@ -45,6 +45,12 @@ def _build_hint(matched_kws: list[str], score: int, macro_signal: str) -> str:
     "不祥事":         "信用リスクが急上昇。機関投資家の売りが集中しやすい",
     "訂正報告書":     "開示の信頼性に疑問符。売り優先で様子見が無難",
     "減益":           "利益成長の鈍化。期待値調整の売りが入りやすい",
+    # TOB/MBO（被買付側）
+    "TOB対象":        "公開買付けの対象銘柄。買付価格へのプレミアム鞘寄せで株価上昇が見込まれる",
+    "MBO対象":        "MBO対象銘柄。買付価格へ株価が収斂する。応募か市場売却かの判断が必要",
+    "株式交換対象":   "株式交換で親会社株に転換。交換比率に基づく理論価格へ鞘寄せが進む",
+    # TOB/MBO（買付側）
+    "TOB実施側":      "買収コスト負担で短期的には売られやすい。中長期ではシナジー次第",
     # ニュース
     "利下げ":         "金融緩和期待で株式市場全体に買いが入りやすい",
     "金融緩和":       "資金流入が促進され株価上昇の追い風になる",
@@ -122,6 +128,153 @@ TDNET_BUY_KEYWORDS: dict[str, int] = {
     "過去最高": 60,
     "増益": 50,
 }
+
+# ---- TOB/MBO 判定 ----
+
+import re
+
+# HD/ホールディングスなど略称・正式名の表記揺れ置換テーブル
+_NAME_NORMALIZE = [
+    ("ホールディングス", "HD"),
+    ("フィナンシャルグループ", "FG"),
+    ("グループ", "G"),
+    ("　", ""),
+    (" ", ""),
+]
+
+
+def _name_matches(company_name: str, text_part: str, title: str) -> bool:
+  """
+  irbank上の企業名と、タイトル中の企業表記が同一企業を指すか判定する。
+
+  HD ↔ ホールディングス等の表記揺れや、タイトル中の(株)○○からの
+  正式名抽出も考慮する。
+  """
+  # 直接一致
+  if company_name in text_part or text_part in company_name:
+    return True
+
+  # 正規化して比較（HD ↔ ホールディングス等）
+  def normalize(s: str) -> str:
+    for old, new in _NAME_NORMALIZE:
+      s = s.replace(old, new)
+    return s
+
+  norm_name = normalize(company_name)
+  norm_part = normalize(text_part)
+  if norm_name in norm_part or norm_part in norm_name:
+    return True
+
+  # タイトルから (株)○○ で始まる正式企業名を抽出し、一致する方を探す
+  corp_names = re.findall(r"[(（]株[)）]([^(（と]+)", title)
+  for corp in corp_names:
+    corp = corp.strip()
+    norm_corp = normalize(corp)
+    if norm_name in norm_corp or norm_corp in norm_name:
+      # この正式名がtext_part内に含まれていればマッチ
+      if corp in text_part or normalize(corp) in norm_part:
+        return True
+
+  # タイトル中の「正式名(略称)」のペアから、text_partが略称にマッチするか確認
+  # 例: 「パン・パシフィック・インターナショナルホールディングス(PPIH)」
+  alias_pairs = re.findall(r"([^(（、と]+?)[(（]([^)）株]+?)[)）]", title)
+  for full, alias in alias_pairs:
+    full = full.strip()
+    alias = alias.strip()
+    # text_partが略称と一致 or 含まれる
+    if alias == text_part or alias in text_part or text_part in alias:
+      # その正式名が企業名とマッチするか
+      norm_full = normalize(full)
+      if norm_name in norm_full or norm_full in norm_name:
+        return True
+
+  return False
+
+
+# TOBの文脈を示すキーワード
+_TOB_CONTEXT = ["公開買付", "TOB", "MBO", "株式交換", "完全子会社化", "非公開化", "スクイーズアウト"]
+
+# 被買付側（ターゲット）を示すキーワード — 強い買いシグナル
+_TOB_TARGET_MARKERS = ["意見表明", "応募推奨", "賛同", "応募契約"]
+
+# 買付側（アクワイアラー）を示すキーワード — 中立〜やや弱気
+_TOB_ACQUIRER_MARKERS = ["開始に関する", "取得に関する", "子会社化を目的"]
+
+
+def classify_tob(title: str, company_name: str = "") -> tuple[str | None, int, list[str]]:
+  """
+  開示タイトルからTOB/MBO関連かを判定し、役割とスコアを返す
+
+  company_name を渡すと、株式交換など同一タイトルで両社が開示するケースで
+  買付側/被買付側を正確に判別できる。
+
+  戻り値: (role, score, matched_keywords)
+    role: "target"（被買付側）/ "acquirer"（買付側）/ None（TOB無関係）
+  """
+  title_lower = title.lower()
+
+  # TOBの文脈キーワードがなければ無関係
+  has_context = any(kw.lower() in title_lower for kw in _TOB_CONTEXT)
+  if not has_context:
+    return None, 0, []
+
+  # 被買付側の判定（ターゲット企業）
+  is_target = any(kw in title for kw in _TOB_TARGET_MARKERS)
+  if is_target:
+    if "株式交換" in title:
+      return "target", 85, ["株式交換対象"]
+    if "MBO" in title_lower:
+      return "target", 90, ["MBO対象"]
+    return "target", 90, ["TOB対象"]
+
+  # 「当社株式に対する」→ 被買付側（他社が当社をTOBしている）
+  if "当社株式に対する" in title or "当社株式についての" in title:
+    return "target", 90, ["TOB対象"]
+
+  # 買付側の判定（アクワイアラー企業）
+  is_acquirer = any(kw in title for kw in _TOB_ACQUIRER_MARKERS)
+  if is_acquirer:
+    return "acquirer", -20, ["TOB実施側"]
+
+  # 株式交換・完全子会社化 — タイトルと企業名で役割を判別
+  if ("子会社化" in title or "子会社異動" in title) and company_name:
+    # 「当社の完全子会社化」→ 開示企業がターゲット
+    if "当社の完全子会社化" in title or "当社の子会社化" in title:
+      return "target", 85, ["株式交換対象"]
+
+    # 「○○の子会社異動」→ ○○がアクワイアラー
+    # 開示企業名（正式名・略称）がタイトル中で「の子会社異動」の直前に出ていたら買付側
+    import re
+    # 「○○の子会社異動」の直前の企業名/略称だけを抽出（貪欲マッチで最短ではなく最後の区切りから）
+    acquirer_match = re.search(r"(?:及び|並びに|、)(.+?)の子会社異動", title)
+    if not acquirer_match:
+      acquirer_match = re.search(r"([^と、]+)の子会社異動", title)
+    if acquirer_match:
+      acquirer_part = acquirer_match.group(1).strip()
+      if _name_matches(company_name, acquirer_part, title):
+        return "acquirer", -20, ["TOB実施側"]
+      return "target", 85, ["株式交換対象"]
+
+    if f"{company_name}の子会社化" in title:
+      return "acquirer", -20, ["TOB実施側"]
+
+    # 「○○の完全子会社化」で○○が開示企業名と異なる → 開示企業は買付側
+    m = re.search(r"(.+?)の完全子会社化", title)
+    if m:
+      subsidiary_name = m.group(1)
+      if _name_matches(company_name, subsidiary_name, title):
+        return "target", 85, ["株式交換対象"]
+      else:
+        return "acquirer", -20, ["TOB実施側"]
+
+    # 上記で判定できなければ被買付側と推定
+    return "target", 85, ["株式交換対象"]
+
+  # 文脈はあるが役割不明
+  if "MBO" in title_lower:
+    return "target", 90, ["MBO対象"]
+  return "target", 80, ["TOB対象"]
+
 
 TDNET_SELL_KEYWORDS: dict[str, int] = {
     "下方修正": -80,
@@ -225,11 +378,19 @@ def dispatch_tdnet(items: list[dict], config: dict, threshold: int = 40) -> int:
     macro_signal = _get_macro_signal()
     sent = 0
     for item in items:
+        # 通常キーワードスコアリング
         score, matched = score_text(
             item["title"],
             TDNET_BUY_KEYWORDS,
             TDNET_SELL_KEYWORDS,
         )
+
+        # TOB/MBO判定 — 該当すればスコアと一致キーワードを上書き
+        tob_role, tob_score, tob_kws = classify_tob(item["title"], item.get("name", ""))
+        if tob_role is not None:
+            # 無配などの売りキーワードはTOB文脈では無意味なので除去して再計算
+            score = tob_score
+            matched = tob_kws
 
         if abs(score) < threshold:
             continue
@@ -239,9 +400,20 @@ def dispatch_tdnet(items: list[dict], config: dict, threshold: int = 40) -> int:
         kw_str = "、".join(matched) if matched else "-"
         hint = _build_hint(matched, score, macro_signal)
 
+        # TOB/MBOの場合は役割を明示
+        if tob_role == "target":
+            role_tag = "📌被買付（買いチャンス）"
+        elif tob_role == "acquirer":
+            role_tag = "📌買付側（様子見）"
+        else:
+            role_tag = ""
+
+        role_line = f"  {role_tag}\n" if role_tag else ""
+
         message = (
             f"{icon} **[TDnet] {item['code']} {item['name']}**\n"
             f"  {item['title']}\n"
+            f"{role_line}"
             f"  スコア: {score:+d} ({signal})  キーワード: {kw_str}\n"
             f"  示唆: {hint}\n"
             f"  {item['url']}"

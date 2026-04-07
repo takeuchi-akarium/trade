@@ -133,14 +133,14 @@ def buildTdnetSection(config):
   try:
     from signals.collectors.tdnet_collector import fetch_disclosures
     from signals.alert_dispatcher import (
-      score_text, TDNET_BUY_KEYWORDS, TDNET_SELL_KEYWORDS,
+      score_text, TDNET_BUY_KEYWORDS, TDNET_SELL_KEYWORDS, classify_tob,
     )
 
     tdnetCfg = config.get("tdnet", {})
     if not tdnetCfg.get("enabled", True):
       return "  無効"
 
-    categories = tdnetCfg.get("categories", ["決算", "配当", "業績修正"])
+    categories = tdnetCfg.get("categories", ["決算", "配当", "業績修正", "買付", "交換", "買収"])
     threshold = tdnetCfg.get("score_threshold", 40)
     items = fetch_disclosures(categories)
 
@@ -151,9 +151,14 @@ def buildTdnetSection(config):
     scored = []
     for item in items:
       score, matched = score_text(item["title"], TDNET_BUY_KEYWORDS, TDNET_SELL_KEYWORDS)
+      # TOB/MBO判定 — 該当すればスコア・キーワードを上書き
+      tob_role, tob_score, tob_kws = classify_tob(item["title"], item.get("name", ""))
+      if tob_role is not None:
+        score = tob_score
+        matched = tob_kws
       if abs(score) < threshold:
         continue
-      scored.append((item, score, matched))
+      scored.append((item, score, matched, tob_role))
 
     if not scored:
       return "  該当なし"
@@ -161,10 +166,15 @@ def buildTdnetSection(config):
     # スコア絶対値でソート、上位5件
     scored.sort(key=lambda x: abs(x[1]), reverse=True)
     lines = []
-    for item, score, matched in scored[:5]:
+    for item, score, matched, tob_role in scored[:5]:
       icon = "+" if score > 0 else "-"
       kwStr = "/".join(matched) if matched else ""
-      lines.append(f"  [{icon}{abs(score)}] {item['code']} {item['name']} {kwStr}\n    {item['url']}")
+      role_tag = ""
+      if tob_role == "target":
+        role_tag = " 📌被買付"
+      elif tob_role == "acquirer":
+        role_tag = " 📌買付側"
+      lines.append(f"  [{icon}{abs(score)}] {item['code']} {item['name']} {kwStr}{role_tag}\n    {item['url']}")
     return "\n".join(lines)
   except Exception as e:
     return f"  取得失敗: {e}"
@@ -184,8 +194,11 @@ def buildLeadlagSection(config):
     from leadlag.metrics import calcRunningMetrics
     from leadlag.report import buildReport, generateAiComment
 
-    today = datetime.now().strftime("%Y-%m-%d")
-    usPrices, jpPrices = fetchAllPrices(start="2009-01-01", end=today)
+    # yfinance の end は排他的（その日を含まない）ため、翌日を指定して当日データを含める
+    # GitHub Actions は 22:00 UTC (= JST 07:00) に実行されるので JST 基準で計算
+    jst = timezone(timedelta(hours=9))
+    tomorrow = (datetime.now(jst) + timedelta(days=1)).strftime("%Y-%m-%d")
+    usPrices, jpPrices = fetchAllPrices(start="2009-01-01", end=tomorrow)
 
     usRetCc = calcCcReturns(usPrices, US_TICKERS)
     jpRetCc = calcCcReturns(jpPrices, JP_TICKERS)
