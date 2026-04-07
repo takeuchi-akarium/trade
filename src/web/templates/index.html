@@ -496,17 +496,23 @@ function renderPaper(d) {
 function renderLeadlag(d) {
   if (!d) return '<span class="loading">--</span>';
   const dateStr = d.date ? d.date.split(" ")[0] : "";
-  let html = `<div class="ll-date">基準日: ${dateStr}</div>`;
+  let html = `<div class="ll-date">基準日: ${dateStr}`;
+  if (d.confidence != null) {
+    const lvl = d.confidence >= 1.3 ? "高" : d.confidence >= 0.9 ? "中" : "低";
+    const clr = d.confidence >= 1.3 ? "var(--green)" : d.confidence >= 0.9 ? "var(--yellow)" : "var(--red)";
+    html += ` &nbsp; 確信度: <span style="color:${clr};font-weight:600">${lvl}</span> (${d.confidence.toFixed(2)})`;
+  }
+  html += `</div>`;
 
   html += `<div class="ll-section"><div class="ll-section-label" style="color:var(--green)">ロング</div><div class="ll-pills">`;
   for (const p of (d.long || [])) {
-    html += `<span class="ll-pill long">${p.name} <b>+${p.score.toFixed(2)}</b></span>`;
+    html += `<span class="ll-pill long"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>+${p.score.toFixed(2)}</b></span>`;
   }
   html += `</div></div>`;
 
   html += `<div class="ll-section"><div class="ll-section-label" style="color:var(--red)">ショート</div><div class="ll-pills">`;
   for (const p of (d.short || [])) {
-    html += `<span class="ll-pill short">${p.name} <b>${p.score.toFixed(2)}</b></span>`;
+    html += `<span class="ll-pill short"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>${p.score.toFixed(2)}</b></span>`;
   }
   html += `</div></div>`;
   return html;

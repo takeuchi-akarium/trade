@@ -169,7 +169,7 @@ def selectPositions(todaySignal, q=QUANTILE_CUTOFF):
   return {"long": longPos, "short": shortPos}
 
 
-def recordPosition(positions, date, outputPath):
+def recordPosition(positions, date, outputPath, confidence=None):
   """ポジション履歴をJSONに追記"""
   outputPath = Path(outputPath)
   outputPath.parent.mkdir(parents=True, exist_ok=True)
@@ -185,6 +185,8 @@ def recordPosition(positions, date, outputPath):
     "long": positions["long"],
     "short": positions["short"],
   }
+  if confidence is not None:
+    entry["confidence"] = round(confidence, 2)
   history.append(entry)
 
   with open(outputPath, "w", encoding="utf-8") as f:
