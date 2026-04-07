@@ -90,7 +90,7 @@ def main():
     notify(report, config)
 
     # Step 7: ポジション履歴記録
-    recordPosition(positions, todaySignal["date"], POSITION_FILE)
+    recordPosition(positions, todaySignal["date"], POSITION_FILE, todaySignal.get("confidence"))
 
     log("batch_leadlag", "完了")
 

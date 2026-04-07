@@ -238,7 +238,7 @@ def buildLeadlagSection(config):
     # ポジション履歴記録
     dataDir = ROOT / "data" / "leadlag"
     positionFile = dataDir / "position_history.json"
-    recordPosition(positions, todaySignal["date"], positionFile)
+    recordPosition(positions, todaySignal["date"], positionFile, todaySignal.get("confidence"))
 
     return report
   except Exception as e:
