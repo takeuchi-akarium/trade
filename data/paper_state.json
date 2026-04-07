@@ -1,0 +1,9 @@
+{
+  "capital": 100000,
+  "holding": 0.0,
+  "entry_price": 0.0,
+  "position": "none",
+  "started_at": "2026-04-04T18:00:55.954116+00:00",
+  "last_run": "2026-04-04T18:00:55.957394+00:00",
+  "last_price": 67329.43
+}
