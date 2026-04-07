@@ -155,6 +155,7 @@ def selectPositions(todaySignal, q=QUANTILE_CUTOFF):
   """
   signals = todaySignal["signals"]
   jpReturns = todaySignal.get("jpReturns", {})
+  jpPrices = todaySignal.get("jpPrices", {})
   ranked = sorted(signals.items(), key=lambda x: x[1], reverse=True)
   nLong = max(1, math.ceil(len(ranked) * q))
 
@@ -163,6 +164,10 @@ def selectPositions(todaySignal, q=QUANTILE_CUTOFF):
     ret = jpReturns.get(ticker)
     if ret is not None and not (isinstance(ret, float) and math.isnan(ret)):
       pos["prevReturn"] = round(ret * 100, 2)
+    priceInfo = jpPrices.get(ticker)
+    if priceInfo:
+      pos["close"] = round(priceInfo["close"], 1)
+      pos["prevChange"] = round(priceInfo["close"] - priceInfo["prevClose"], 1)
     return pos
 
   longPos = [buildPos(t, s) for t, s in ranked[:nLong]]

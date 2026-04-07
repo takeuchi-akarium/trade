@@ -348,6 +348,7 @@
     <div class="section-group">
       <div class="card" id="leadlagCard">
         <div class="card-label">日米リードラグ</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">前日の米国セクターETFの動きから17種の日本セクターETFにスコアを付与。上位6銘柄を買い(ロング)・下位6銘柄を空売り(ショート)。相場全体の方向に関係なく、銘柄間の相対順位が当たれば利益が出る戦略。確信度はロング上位とショート下位の平均スコア差で、大きいほどシグナルが明確。</div>
         <div id="leadlagContent"><span class="loading">...</span></div>
       </div>
     </div>
@@ -577,15 +578,19 @@ function renderLeadlag(d) {
 
   html += `<div class="ll-section"><div class="ll-section-label" style="color:var(--green)">ロング</div><div class="ll-pills">`;
   for (const p of (d.long || [])) {
-    const ret = p.prevReturn != null ? ` <span style="opacity:.6;font-size:11px">(${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%)</span>` : "";
-    html += `<span class="ll-pill long"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>+${p.score.toFixed(2)}</b>${ret}</span>`;
+    let extra = "";
+    if (p.prevReturn != null) extra += ` <span style="opacity:.6;font-size:11px">${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%</span>`;
+    if (p.prevChange != null) extra += ` <span style="opacity:.5;font-size:10px">(${p.prevChange >= 0 ? "+" : ""}${p.prevChange.toFixed(1)}円)</span>`;
+    html += `<span class="ll-pill long"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>+${p.score.toFixed(2)}</b>${extra}</span>`;
   }
   html += `</div></div>`;
 
   html += `<div class="ll-section"><div class="ll-section-label" style="color:var(--red)">ショート</div><div class="ll-pills">`;
   for (const p of (d.short || [])) {
-    const ret = p.prevReturn != null ? ` <span style="opacity:.6;font-size:11px">(${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%)</span>` : "";
-    html += `<span class="ll-pill short"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>${p.score.toFixed(2)}</b>${ret}</span>`;
+    let extra = "";
+    if (p.prevReturn != null) extra += ` <span style="opacity:.6;font-size:11px">${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%</span>`;
+    if (p.prevChange != null) extra += ` <span style="opacity:.5;font-size:10px">(${p.prevChange >= 0 ? "+" : ""}${p.prevChange.toFixed(1)}円)</span>`;
+    html += `<span class="ll-pill short"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>${p.score.toFixed(2)}</b>${extra}</span>`;
   }
   html += `</div></div>`;
   return html;
