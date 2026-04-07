@@ -31,11 +31,49 @@ def _send_discord(message: str, webhook_url: str) -> None:
         print("  [Discord] webhook_url が未設定です（.env を確認）")
         return
     try:
-        resp = requests.post(webhook_url, json={"content": message}, timeout=5)
-        resp.raise_for_status()
-        print("  [Discord] 送信完了")
+        # Discord のメッセージ上限は 2000 文字。超える場合は分割送信
+        chunks = _split_message(message, 2000)
+        for chunk in chunks:
+            resp = requests.post(webhook_url, json={"content": chunk}, timeout=10)
+            resp.raise_for_status()
+        print(f"  [Discord] 送信完了（{len(chunks)}通）")
     except Exception as e:
         print(f"  [Discord] 送信失敗: {e}")
+
+
+def _split_message(message: str, limit: int) -> list[str]:
+    """メッセージを limit 文字以内のチャンクに分割する（セクション区切りで分割）"""
+    if len(message) <= limit:
+        return [message]
+
+    chunks = []
+    current = ""
+    # セクション（空行2つ）で分割を試みる
+    sections = message.split("\n\n")
+    for section in sections:
+        candidate = f"{current}\n\n{section}" if current else section
+        if len(candidate) <= limit:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current)
+            # セクション単体が limit を超える場合は行単位で分割
+            if len(section) > limit:
+                lines = section.split("\n")
+                current = ""
+                for line in lines:
+                    candidate = f"{current}\n{line}" if current else line
+                    if len(candidate) <= limit:
+                        current = candidate
+                    else:
+                        if current:
+                            chunks.append(current)
+                        current = line[:limit]
+            else:
+                current = section
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def _append_log(message: str, path: str) -> None:
