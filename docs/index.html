@@ -151,27 +151,122 @@
   .paper-item .lbl { font-size: 11px; color: var(--muted); }
 
   /* Leadlag */
-  .ll-section { margin-bottom: 6px; }
-  .ll-section:last-child { margin-bottom: 0; }
-  .ll-section-label {
+  .ll-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 10px;
     font-size: 12px;
-    font-weight: 700;
-    margin-bottom: 4px;
+    color: var(--muted);
   }
-  .ll-pills { display: flex; flex-wrap: wrap; gap: 4px; }
-  .ll-pill {
-    display: inline-flex;
+  .ll-confidence {
+    display: flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 10px;
-    border-radius: 4px;
+  }
+  .ll-conf-bar {
+    width: 60px;
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ll-conf-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .3s;
+  }
+  .ll-conf-label {
+    font-weight: 600;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .ll-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .ll-section { }
+  .ll-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .ll-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ll-section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .ll-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ll-item {
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+  .ll-item.long {
+    background: rgba(34,197,94,.06);
+    border-color: rgba(34,197,94,.15);
+  }
+  .ll-item.short {
+    background: rgba(239,68,68,.06);
+    border-color: rgba(239,68,68,.15);
+  }
+  .ll-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .ll-item-name {
     font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ll-item-ticker {
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+  .ll-item-score {
+    font-size: 12px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
-  .ll-pill b { font-weight: 700; }
-  .ll-pill.long  { background: rgba(34,197,94,.1); color: var(--green); }
-  .ll-pill.short { background: rgba(239,68,68,.1); color: var(--red); }
-  .ll-date { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .ll-score-track {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .ll-score-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .3s;
+  }
+  .ll-item-prev {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
 
   /* ── Right column: Signal log ── */
   .right {
@@ -301,7 +396,11 @@
     .btc-change { font-size: 14px; }
     .paper-row { gap: 12px; }
     .paper-item .val { font-size: 16px; }
-    .ll-pill { font-size: 12px; padding: 2px 7px; }
+    .ll-columns { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .ll-item { padding: 5px 8px; }
+    .ll-item-name { font-size: 11px; }
+    .ll-item-score { font-size: 11px; }
+    .ll-meta { gap: 10px; flex-wrap: wrap; }
     .right {
       padding: 10px;
       min-height: 400px;
@@ -568,31 +667,82 @@ function renderPaper(d) {
 function renderLeadlag(d) {
   if (!d) return '<span class="loading">--</span>';
   const dateStr = d.date ? d.date.split(" ")[0] : "";
-  let html = `<div class="ll-date">基準日: ${dateStr}`;
+
+  // 全スコアの最大絶対値（バー幅の正規化用）
+  const allScores = [...(d.long || []), ...(d.short || [])].map(p => Math.abs(p.score));
+  const maxScore = Math.max(...allScores, 0.01);
+
+  // メタ行: 基準日 + 確信度ゲージ
+  let html = `<div class="ll-meta"><span>基準日: ${dateStr}</span>`;
   if (d.confidence != null) {
     const lvl = d.confidence >= 1.3 ? "高" : d.confidence >= 0.9 ? "中" : "低";
     const clr = d.confidence >= 1.3 ? "var(--green)" : d.confidence >= 0.9 ? "var(--yellow)" : "var(--red)";
-    html += ` &nbsp; 確信度: <span style="color:${clr};font-weight:600">${lvl}</span> (${d.confidence.toFixed(2)})`;
+    const pct = Math.min(100, (d.confidence / 2.0) * 100);
+    html += `<div class="ll-confidence">確信度
+      <div class="ll-conf-bar"><div class="ll-conf-fill" style="width:${pct}%;background:${clr}"></div></div>
+      <span class="ll-conf-label" style="color:${clr};background:${clr}15">${lvl} ${d.confidence.toFixed(2)}</span>
+    </div>`;
   }
   html += `</div>`;
 
-  html += `<div class="ll-section"><div class="ll-section-label" style="color:var(--green)">ロング</div><div class="ll-pills">`;
+  // ロング・ショートを左右2カラムで並べる
+  html += `<div class="ll-columns">`;
+
+  // 左: ロング
+  html += `<div class="ll-section">
+    <div class="ll-section-header">
+      <span class="ll-section-label" style="color:var(--green)">Long</span>
+      <div class="ll-section-line"></div>
+    </div>
+    <div class="ll-grid">`;
   for (const p of (d.long || [])) {
-    let extra = "";
-    if (p.prevReturn != null) extra += ` <span style="opacity:.6;font-size:11px">${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%</span>`;
-    if (p.prevChange != null) extra += ` <span style="opacity:.5;font-size:10px">(${p.prevChange >= 0 ? "+" : ""}${p.prevChange.toFixed(1)}円)</span>`;
-    html += `<span class="ll-pill long"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>+${p.score.toFixed(2)}</b>${extra}</span>`;
+    const barW = (Math.abs(p.score) / maxScore) * 100;
+    let prev = "";
+    if (p.prevReturn != null) {
+      const pc = p.prevReturn >= 0 ? "var(--green)" : "var(--red)";
+      prev = `<div class="ll-item-prev"><span style="color:${pc}">${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%</span>`;
+      if (p.prevChange != null) prev += ` (${p.prevChange >= 0 ? "+" : ""}${p.prevChange.toFixed(1)}円)`;
+      prev += `</div>`;
+    }
+    html += `<div class="ll-item long">
+      <div class="ll-item-top">
+        <span class="ll-item-name">${p.name}<span class="ll-item-ticker">${p.ticker.replace('.T','')}</span></span>
+        <span class="ll-item-score" style="color:var(--green)">+${p.score.toFixed(2)}</span>
+      </div>
+      <div class="ll-score-track"><div class="ll-score-fill" style="width:${barW}%;background:var(--green)"></div></div>
+      ${prev}
+    </div>`;
   }
   html += `</div></div>`;
 
-  html += `<div class="ll-section"><div class="ll-section-label" style="color:var(--red)">ショート</div><div class="ll-pills">`;
-  for (const p of (d.short || [])) {
-    let extra = "";
-    if (p.prevReturn != null) extra += ` <span style="opacity:.6;font-size:11px">${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%</span>`;
-    if (p.prevChange != null) extra += ` <span style="opacity:.5;font-size:10px">(${p.prevChange >= 0 ? "+" : ""}${p.prevChange.toFixed(1)}円)</span>`;
-    html += `<span class="ll-pill short"><span style="color:rgba(255,255,255,.4);font-size:11px">${p.ticker.replace('.T','')}</span> ${p.name} <b>${p.score.toFixed(2)}</b>${extra}</span>`;
+  // 右: ショート
+  html += `<div class="ll-section">
+    <div class="ll-section-header">
+      <span class="ll-section-label" style="color:var(--red)">Short</span>
+      <div class="ll-section-line"></div>
+    </div>
+    <div class="ll-grid">`;
+  for (const p of (d.short || []).slice().reverse()) {
+    const barW = (Math.abs(p.score) / maxScore) * 100;
+    let prev = "";
+    if (p.prevReturn != null) {
+      const pc = p.prevReturn >= 0 ? "var(--green)" : "var(--red)";
+      prev = `<div class="ll-item-prev"><span style="color:${pc}">${p.prevReturn >= 0 ? "+" : ""}${p.prevReturn.toFixed(2)}%</span>`;
+      if (p.prevChange != null) prev += ` (${p.prevChange >= 0 ? "+" : ""}${p.prevChange.toFixed(1)}円)`;
+      prev += `</div>`;
+    }
+    html += `<div class="ll-item short">
+      <div class="ll-item-top">
+        <span class="ll-item-name">${p.name}<span class="ll-item-ticker">${p.ticker.replace('.T','')}</span></span>
+        <span class="ll-item-score" style="color:var(--red)">${p.score.toFixed(2)}</span>
+      </div>
+      <div class="ll-score-track"><div class="ll-score-fill" style="width:${barW}%;background:var(--red)"></div></div>
+      ${prev}
+    </div>`;
   }
   html += `</div></div>`;
+
+  html += `</div>`; // .ll-columns
   return html;
 }
 
