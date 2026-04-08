@@ -8,8 +8,10 @@
 """
 
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+JST = timezone(timedelta(hours=9))
 
 
 def notify(message: str, config: dict) -> None:
@@ -80,7 +82,7 @@ def _append_log(message: str, path: str) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as f:
-        f.write(f"{datetime.now().isoformat()}\t{message}\n")
+        f.write(f"{datetime.now(JST).isoformat()}\t{message}\n")
 
 
 def _send_line(message: str, token: str) -> None:
