@@ -48,6 +48,7 @@
     ]
   },
   "permissions": {
+    "disableAutoMode": "disable",
     "deny": [
       "Edit(**/package-lock.json)",
       "Write(**/package-lock.json)",

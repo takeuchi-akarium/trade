@@ -260,6 +260,151 @@ def buildLeadlagSection(config):
     return f"[leadlag] エラー: {e}"
 
 
+# ── 日本小型株モメンタム セクション ─────────────────────
+
+def buildJpMomentumSection():
+  """日本小型株モメンタムランキングTOP10を生成"""
+  try:
+    import numpy as np
+    from strategies.jp_stock.data import getSmallCapUniverse, fetchOhlcv
+
+    universe = getSmallCapUniverse()
+
+    # 日経225で市場トレンド判定
+    nk = fetchOhlcv("^N225", interval="1d", years=1)
+    nkPrice = nk["close"].iloc[-1]
+    nkSma200 = nk["close"].tail(200).mean()
+    marketOk = nkPrice > nkSma200
+    trendStr = "上昇" if marketOk else "下落"
+
+    lines = [f"  日経225: {nkPrice:,.0f} (SMA200: {nkSma200:,.0f}) -> {trendStr}トレンド"]
+
+    if not marketOk:
+      lines.append("  ** 市場下落中: 新規エントリー非推奨（現金待機）**")
+      return "\n".join(lines)
+
+    # 全銘柄のモメンタムを計算
+    momentum = []
+    checked = 0
+    for stock in universe:
+      sym = stock["symbol"]
+      try:
+        df = fetchOhlcv(sym, interval="1d", years=1)
+        if len(df) < 80:
+          continue
+        checked += 1
+
+        price = df["close"].iloc[-1]
+        if price < 200:
+          continue
+        avgVol = df["volume"].tail(20).mean()
+        if avgVol < 30000:
+          continue
+
+        ret60 = (price / df["close"].iloc[-60] - 1) * 100 if len(df) >= 60 else 0
+        ret20 = (price / df["close"].iloc[-20] - 1) * 100 if len(df) >= 20 else 0
+
+        momentum.append({
+          "symbol": sym,
+          "name": stock.get("name", ""),
+          "price": price,
+          "ret60": ret60,
+          "ret20": ret20,
+          "avgVol": avgVol,
+        })
+      except Exception:
+        continue
+
+      # 上位を決めるのに十分なデータがあれば途中で切り上げ
+      if checked >= 500 and len(momentum) >= 50:
+        break
+
+    if not momentum:
+      lines.append("  データ取得失敗")
+      return "\n".join(lines)
+
+    # 60日リターン上位10銘柄
+    momentum.sort(key=lambda x: x["ret60"], reverse=True)
+    top10 = momentum[:10]
+
+    lines.append(f"  (検査: {checked}銘柄 / 通過: {len(momentum)}銘柄)")
+    lines.append("")
+    lines.append("  順位  銘柄      株価      60日     20日    出来高")
+    lines.append("  " + "-" * 55)
+
+    for i, m in enumerate(top10):
+      lines.append(
+        f"  {i+1:>3d}.  {m['symbol']:>8s}  {m['price']:>7,.0f}  "
+        f"{m['ret60']:>+6.1f}%  {m['ret20']:>+6.1f}%  {m['avgVol']:>9,.0f}"
+      )
+
+    # 現在保有との差分（前回のTOP10と比較）
+    top10Path = ROOT / "data" / "jp_stock" / "prev_top10.json"
+    prevSymbols = set()
+    if top10Path.exists():
+      prev = json.loads(top10Path.read_text(encoding="utf-8"))
+      prevSymbols = set(prev.get("symbols", []))
+
+    currentSymbols = set(m["symbol"] for m in top10)
+    newIn = currentSymbols - prevSymbols
+    droppedOut = prevSymbols - currentSymbols
+
+    if newIn or droppedOut:
+      lines.append("")
+      if newIn:
+        lines.append(f"  新規: {', '.join(sorted(newIn))}")
+      if droppedOut:
+        lines.append(f"  脱落: {', '.join(sorted(droppedOut))}")
+
+    # 保存
+    top10Path.parent.mkdir(parents=True, exist_ok=True)
+    top10Path.write_text(
+      json.dumps({
+        "symbols": sorted(currentSymbols),
+        "date": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d"),
+        "top10": [{k: v for k, v in m.items() if k != "avgVol"} for m in top10],
+      }, ensure_ascii=False, indent=2),
+      encoding="utf-8",
+    )
+
+    return "\n".join(lines)
+  except Exception as e:
+    return f"  取得失敗: {e}"
+
+
+# ── デュアルモメンタム セクション ──────────────────────
+
+def buildDualMomentumSection(config):
+  """デュアルモメンタム (GEM) のシグナルを生成してレポート文字列を返す"""
+  try:
+    from dual_momentum.fetch_data import fetchPrices
+    from dual_momentum.signal_generator import generateTodaySignal
+    from dual_momentum.report import buildReport
+
+    prices = fetchPrices()
+    todaySignal = generateTodaySignal(prices)
+
+    # 前月シグナルとの比較
+    prevSignal = None
+    prevPath = ROOT / "data" / "dual_momentum" / "prev_signal.json"
+    if prevPath.exists():
+      prev = json.loads(prevPath.read_text(encoding="utf-8"))
+      prevSignal = prev.get("signal")
+
+    report = buildReport(todaySignal, prevSignal)
+
+    # 今月のシグナルを保存
+    if todaySignal:
+      prevPath.parent.mkdir(parents=True, exist_ok=True)
+      prevPath.write_text(
+        json.dumps({"signal": todaySignal["signal"], "date": todaySignal["date"]},
+                   ensure_ascii=False), encoding="utf-8")
+
+    return report
+  except Exception as e:
+    return f"  取得失敗: {e}"
+
+
 # ── メイン ───────────────────────────────────────────
 
 def main():
@@ -278,21 +423,29 @@ def main():
   leadlagReport = buildLeadlagSection(config)
   sections.append(leadlagReport)
 
-  # 2. BTC
+  # 2. デュアルモメンタム
+  log("batch_morning", "デュアルモメンタム...")
+  sections.append(f"■ デュアルモメンタム (GEM)\n{buildDualMomentumSection(config)}")
+
+  # 3. BTC
   log("batch_morning", "BTC...")
   sections.append(f"■ BTC（前日）\n{buildBtcSection()}")
 
-  # 3. マクロシグナル
+  # 4. マクロシグナル
   log("batch_morning", "マクロ...")
   sections.append(f"■ マクロシグナル\n{buildMacroSection(config)}")
 
-  # 4. ニュース
+  # 5. ニュース
   log("batch_morning", "RSS...")
   sections.append(f"■ 注目ニュース\n{buildRssSection(config)}")
 
-  # 5. TDnet
+  # 6. TDnet
   log("batch_morning", "TDnet...")
   sections.append(f"■ 適時開示\n{buildTdnetSection(config)}")
+
+  # 7. 日本小型株モメンタムTOP10
+  log("batch_morning", "JP momentum...")
+  sections.append(f"■ 日本小型株 モメンタムTOP10\n{buildJpMomentumSection()}")
 
   # 統合レポート送信
   report = "\n\n".join(sections)

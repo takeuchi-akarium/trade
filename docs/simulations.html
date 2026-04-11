@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulations</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e1e4eb;
+    --muted: #8b8fa3;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; }
+  .header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header a:hover { color: var(--text); }
+
+  .container { padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 16px 0 8px;
+  }
+
+  /* ── ライブシミュレーション ── */
+  .live-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+  }
+  .live-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .live-card .name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .live-card .status { font-size: 12px; color: var(--muted); }
+  .live-card .metrics { display: flex; gap: 16px; margin-top: 8px; }
+  .live-card .metric .val { font-size: 18px; font-weight: 700; }
+  .live-card .metric .lbl { font-size: 10px; color: var(--muted); }
+
+  /* ── バックテスト一覧 ── */
+  .bt-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .bt-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .bt-card:hover { border-color: #555; }
+  .bt-card.active { border-color: var(--yellow); }
+
+  .bt-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .bt-card-name { font-size: 14px; font-weight: 600; }
+  .bt-card-return { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bt-card-meta { font-size: 12px; color: var(--muted); display: flex; gap: 16px; }
+
+  /* ── 詳細パネル ── */
+  .detail-panel {
+    margin-top: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: none;
+  }
+  .detail-panel.open { display: block; }
+  .detail-chart { width: 100%; height: 350px; }
+  .detail-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .detail-metric {
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+  }
+  .detail-metric .val { font-size: 16px; font-weight: 700; }
+  .detail-metric .lbl { font-size: 10px; color: var(--muted); }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Simulations</h1>
+  <a href="/">&larr; Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- ライブシミュレーション -->
+  <div class="section-label">Live Simulations</div>
+  <div id="liveContent" class="live-grid">
+    <div class="empty">ライブシミュレーションなし</div>
+  </div>
+
+  <!-- バックテスト結果 -->
+  <div class="section-label">Backtest Results</div>
+  <div id="btContent" class="bt-list">
+    <div class="empty">読み込み中...</div>
+  </div>
+
+  <!-- 詳細パネル -->
+  <div id="detailPanel" class="detail-panel">
+    <div id="detailChart" class="detail-chart"></div>
+    <div id="detailMetrics" class="detail-metrics"></div>
+  </div>
+</div>
+
+<script>
+function fmt(n, d) { return Number(n).toLocaleString("en-US", {minimumFractionDigits: d || 0, maximumFractionDigits: d || 0}); }
+function retColor(v) { return v >= 0 ? "var(--green)" : "var(--red)"; }
+
+// ── ライブシミュレーション ──
+
+function renderLive(states) {
+  var el = document.getElementById("liveContent");
+  if (!states || !states.length) {
+    el.innerHTML = '<div class="empty">ライブシミュレーションなし</div>';
+    return;
+  }
+  el.innerHTML = states.map(function(s) {
+    var equity = s.capital || 0;
+    if (s.holding > 0 && s.lastPrice) equity = s.holding * s.lastPrice;
+    var ret = ((equity / (s.initialCapital || 100000)) - 1) * 100;
+    var wr = s.totalTrades > 0 ? (s.wins / s.totalTrades * 100) : 0;
+    return '<div class="live-card">' +
+      '<div class="name">' + (s.strategyName || s._filename || "?") + '</div>' +
+      '<div class="status">' + (s.symbol || "") + " " + (s.interval || "") +
+        ' &middot; 更新: ' + (s.updatedAt ? new Date(s.updatedAt).toLocaleString("ja-JP") : "-") + '</div>' +
+      '<div class="metrics">' +
+        '<div class="metric"><div class="val" style="color:' + retColor(ret) + '">' + (ret >= 0 ? "+" : "") + ret.toFixed(1) + '%</div><div class="lbl">リターン</div></div>' +
+        '<div class="metric"><div class="val">' + fmt(equity) + '</div><div class="lbl">資産</div></div>' +
+        '<div class="metric"><div class="val">' + wr.toFixed(0) + '%</div><div class="lbl">勝率</div></div>' +
+        '<div class="metric"><div class="val">' + (s.totalTrades || 0) + '</div><div class="lbl">取引</div></div>' +
+      '</div></div>';
+  }).join("");
+}
+
+// ── バックテスト一覧 ──
+
+var _backtests = [];
+var _activeIdx = -1;
+
+function renderBacktests(items) {
+  var el = document.getElementById("btContent");
+  if (!items || !items.length) {
+    el.innerHTML = '<div class="empty">バックテスト結果なし。<br>python src/simulator/runner.py run --strategy rsi --symbol BTCUSDT</div>';
+    return;
+  }
+  _backtests = items;
+  el.innerHTML = items.map(function(item, i) {
+    // compare の場合
+    if (item.type === "compare") {
+      var names = item.results.map(function(r) { return r.strategyName; }).join(", ");
+      return '<div class="bt-card" onclick="openCompare(' + i + ')">' +
+        '<div class="bt-card-top">' +
+          '<span class="bt-card-name">比較: ' + names + '</span>' +
+        '</div>' +
+        '<div class="bt-card-meta">' +
+          '<span>' + (item.symbol || "") + '</span>' +
+          '<span>' + item.results.length + '戦略</span>' +
+          '<span>' + (item.savedAt ? new Date(item.savedAt).toLocaleString("ja-JP") : "") + '</span>' +
+        '</div></div>';
+    }
+
+    var m = item.metrics || {};
+    var ret = m.totalReturn || 0;
+    return '<div class="bt-card" onclick="openDetail(' + i + ')">' +
+      '<div class="bt-card-top">' +
+        '<span class="bt-card-name">' + (item.strategyName || "?") + '</span>' +
+        '<span class="bt-card-return" style="color:' + retColor(ret) + '">' + (ret >= 0 ? "+" : "") + ret.toFixed(1) + '%</span>' +
+      '</div>' +
+      '<div class="bt-card-meta">' +
+        '<span>' + (item.symbol || "") + " " + (item.interval || "") + '</span>' +
+        '<span>取引: ' + (m.totalTrades || 0) + '</span>' +
+        '<span>勝率: ' + (m.winRate || 0).toFixed(1) + '%</span>' +
+        '<span>MDD: ' + (m.mdd || 0).toFixed(1) + '%</span>' +
+        '<span>' + (item.savedAt ? new Date(item.savedAt).toLocaleString("ja-JP") : "") + '</span>' +
+      '</div></div>';
+  }).join("");
+}
+
+// ── 詳細表示 ──
+
+function openDetail(idx) {
+  var item = _backtests[idx];
+  if (!item || !item.equity) return;
+
+  // カードハイライト
+  document.querySelectorAll(".bt-card").forEach(function(c, i) {
+    c.classList.toggle("active", i === idx);
+  });
+
+  var panel = document.getElementById("detailPanel");
+  panel.classList.add("open");
+
+  // チャート
+  var dates = item.equity.map(function(e) { return e.date; });
+  var pcts = item.equity.map(function(e) { return e.pct; });
+
+  Plotly.newPlot("detailChart", [{
+    x: dates, y: pcts,
+    type: "scatter", mode: "lines",
+    fill: "tozeroy",
+    line: { color: "gold", width: 1.5 },
+    fillcolor: "rgba(255,215,0,0.1)",
+  }], {
+    margin: { l: 50, r: 20, t: 20, b: 40 },
+    template: "plotly_dark",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(20,20,30,1)",
+    yaxis: { title: "リターン (%)" },
+    xaxis: { type: "date" },
+    hovermode: "x unified",
+    shapes: [{ type: "line", x0: dates[0], x1: dates[dates.length-1], y0: 0, y1: 0,
+               line: { color: "white", width: 0.5, dash: "dot" }}],
+  }, { responsive: true });
+
+  // メトリクス
+  var m = item.metrics || {};
+  var metricsEl = document.getElementById("detailMetrics");
+  var items = [
+    ["総リターン", (m.totalReturn || 0).toFixed(2) + "%"],
+    ["最終資���", fmt(m.finalValue || 0)],
+    ["トレード回数", m.totalTrades || 0],
+    ["勝率", (m.winRate || 0).toFixed(1) + "%"],
+    ["MDD", (m.mdd || 0).toFixed(1) + "%"],
+  ];
+  if (m.annualReturn) items.push(["年率リターン", m.annualReturn.toFixed(2) + "%"]);
+  if (m.sharpe) items.push(["シャープ", m.sharpe.toFixed(2)]);
+  if (m.profitFactor) items.push(["PF", m.profitFactor.toFixed(2)]);
+
+  metricsEl.innerHTML = items.map(function(x) {
+    return '<div class="detail-metric"><div class="val">' + x[1] + '</div><div class="lbl">' + x[0] + '</div></div>';
+  }).join("");
+}
+
+function openCompare(idx) {
+  var item = _backtests[idx];
+  if (!item || !item.results) return;
+
+  document.querySelectorAll(".bt-card").forEach(function(c, i) {
+    c.classList.toggle("active", i === idx);
+  });
+
+  var panel = document.getElementById("detailPanel");
+  panel.classList.add("open");
+
+  var colors = ["royalblue", "gold", "limegreen", "violet", "cyan", "orange", "tomato"];
+  var traces = item.results.map(function(r, i) {
+    if (!r.equity) return null;
+    return {
+      x: r.equity.map(function(e) { return e.date; }),
+      y: r.equity.map(function(e) { return e.pct; }),
+      type: "scatter", mode: "lines",
+      name: r.strategyName,
+      line: { color: colors[i % colors.length], width: 2 },
+    };
+  }).filter(Boolean);
+
+  Plotly.newPlot("detailChart", traces, {
+    margin: { l: 50, r: 20, t: 20, b: 40 },
+    template: "plotly_dark",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(20,20,30,1)",
+    yaxis: { title: "リターン (%)" },
+    xaxis: { type: "date" },
+    hovermode: "x unified",
+    legend: { orientation: "h", y: -0.15 },
+  }, { responsive: true });
+
+  var metricsEl = document.getElementById("detailMetrics");
+  metricsEl.innerHTML = item.results.map(function(r, i) {
+    var m = r.metrics || {};
+    var ret = m.totalReturn || 0;
+    return '<div class="detail-metric" style="border-left:3px solid ' + colors[i % colors.length] + '">' +
+      '<div class="val" style="color:' + retColor(ret) + '">' + (ret >= 0 ? "+" : "") + ret.toFixed(1) + '%</div>' +
+      '<div class="lbl">' + r.strategyName + '</div></div>';
+  }).join("");
+}
+
+// ── データ取得 ──
+
+async function loadData() {
+  try {
+    var resp = await fetch("/api/simulations");
+    var data = await resp.json();
+    renderLive(data.live);
+    renderBacktests(data.backtests);
+  } catch (e) {
+    document.getElementById("btContent").innerHTML =
+      '<div class="empty">データ取得失敗: ' + e.message + '</div>';
+  }
+}
+
+loadData();
+setInterval(loadData, 30000);
+</script>
+
+</body>
+</html>

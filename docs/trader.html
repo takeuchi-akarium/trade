@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Trader</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e1e4eb; --muted: #8b8fa3;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.4;
+  }
+  .header {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; }
+  .header nav { display: flex; gap: 16px; }
+  .header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header a:hover { color: var(--text); }
+
+  .container { padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+
+  /* Summary cards */
+  .summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-bottom: 16px;
+  }
+  .summary-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .summary-card .val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-card .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px;
+  }
+
+  /* Strategy cards */
+  .strat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 10px; }
+  .strat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .strat-card .name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .strat-card .pos { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .strat-card .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .strat-card .metric .val { font-size: 18px; font-weight: 700; }
+  .strat-card .metric .lbl { font-size: 10px; color: var(--muted); }
+
+  /* Trade log */
+  .trade-log {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; max-height: 400px; overflow-y: auto;
+  }
+  .trade-row {
+    display: flex; gap: 12px; padding: 6px 0;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .trade-row:last-child { border-bottom: none; }
+  .trade-row .dt { color: var(--muted); min-width: 140px; }
+  .trade-row .type { min-width: 80px; font-weight: 600; }
+  .trade-row .type.buy { color: var(--green); }
+  .trade-row .type.sell, .trade-row .type.short { color: var(--red); }
+  .trade-row .type.close_long { color: var(--red); }
+  .trade-row .type.close_short { color: var(--green); }
+  .trade-row .detail { color: var(--muted); }
+  .trade-row .pnl { margin-left: auto; font-weight: 600; }
+
+  .chart { width: 100%; height: 300px; margin-bottom: 16px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+
+  @media (max-width: 700px) {
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .strat-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Auto Trader</h1>
+  <nav>
+    <a href="/">&larr; Dashboard</a>
+    <a href="/simulations">Simulations</a>
+  </nav>
+</div>
+
+<div class="container">
+  <!-- Summary -->
+  <div id="summary" class="summary">
+    <div class="summary-card"><div class="val" id="sumPnl">--</div><div class="lbl">Total P&L</div></div>
+    <div class="summary-card"><div class="val" id="sumTrades">--</div><div class="lbl">Total Trades</div></div>
+    <div class="summary-card"><div class="val" id="sumWinRate">--</div><div class="lbl">Win Rate</div></div>
+    <div class="summary-card"><div class="val" id="sumUpdated">--</div><div class="lbl">Last Update</div></div>
+  </div>
+
+  <!-- PnL chart -->
+  <div id="pnlChart" class="chart"></div>
+
+  <!-- Strategy cards -->
+  <div class="section-label">Strategies</div>
+  <div id="stratCards" class="strat-grid">
+    <div class="empty">Loading...</div>
+  </div>
+
+  <!-- Trade log -->
+  <div class="section-label">Trade Log</div>
+  <div id="tradeLog" class="trade-log">
+    <div class="empty">No trades yet</div>
+  </div>
+</div>
+
+<script>
+function fmt(n) { return Number(n).toLocaleString("ja-JP"); }
+function pnlColor(v) { return v >= 0 ? "var(--green)" : "var(--red)"; }
+
+function renderSummary(data) {
+  var s = data.summary;
+  document.getElementById("sumPnl").style.color = pnlColor(s.totalPnl);
+  document.getElementById("sumPnl").textContent = (s.totalPnl >= 0 ? "+" : "") + fmt(Math.round(s.totalPnl)) + " JPY";
+  document.getElementById("sumTrades").textContent = s.totalTrades;
+  document.getElementById("sumWinRate").textContent = s.winRate.toFixed(1) + "%";
+
+  var latest = "";
+  data.strategies.forEach(function(st) {
+    if (st.updatedAt && st.updatedAt > latest) latest = st.updatedAt;
+  });
+  document.getElementById("sumUpdated").textContent = latest
+    ? new Date(latest).toLocaleString("ja-JP") : "--";
+}
+
+function renderStrategies(data) {
+  var el = document.getElementById("stratCards");
+  if (!data.strategies.length) {
+    el.innerHTML = '<div class="empty">No strategies running</div>';
+    return;
+  }
+
+  el.innerHTML = data.strategies.map(function(st) {
+    var nt = st.totalTrades || 0;
+    var wr = nt > 0 ? (st.wins / nt * 100).toFixed(1) : "0.0";
+    var pnl = st.totalPnl || 0;
+    var posColor = st.position === "long" ? "var(--green)"
+                 : st.position === "short" ? "var(--red)" : "var(--muted)";
+    var posLabel = st.position === "none" ? "No Position"
+                 : st.position.toUpperCase() + " @ " + fmt(st.entryPrice);
+
+    return '<div class="strat-card">' +
+      '<div class="name">' + (st.strategy || "?") + '</div>' +
+      '<div class="pos" style="color:' + posColor + '">' + posLabel + '</div>' +
+      '<div class="metrics">' +
+        '<div class="metric"><div class="val" style="color:' + pnlColor(pnl) + '">' + (pnl >= 0 ? "+" : "") + fmt(Math.round(pnl)) + '</div><div class="lbl">P&L (JPY)</div></div>' +
+        '<div class="metric"><div class="val">' + wr + '%</div><div class="lbl">Win Rate</div></div>' +
+        '<div class="metric"><div class="val">' + nt + '</div><div class="lbl">Trades</div></div>' +
+      '</div>' +
+      (st.stopPrice > 0 ? '<div style="font-size:12px;color:var(--muted)">SL: ' + fmt(st.stopPrice) + '</div>' : '') +
+    '</div>';
+  }).join("");
+}
+
+function renderPnlChart(data) {
+  // Collect all trades with pnl across strategies, sort by date
+  var points = [];
+  data.strategies.forEach(function(st) {
+    (st.trades || []).forEach(function(t) {
+      if (t.pnl !== undefined) {
+        points.push({ date: t.datetime, pnl: t.pnl, strategy: st.strategy });
+      }
+    });
+  });
+  points.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+
+  if (points.length === 0) {
+    document.getElementById("pnlChart").innerHTML = '<div class="empty">No P&L data yet</div>';
+    return;
+  }
+
+  // Cumulative PnL
+  var cumPnl = 0;
+  var dates = [];
+  var values = [];
+  points.forEach(function(p) {
+    cumPnl += p.pnl;
+    dates.push(p.date);
+    values.push(Math.round(cumPnl));
+  });
+
+  Plotly.newPlot("pnlChart", [{
+    x: dates, y: values,
+    type: "scatter", mode: "lines+markers",
+    fill: "tozeroy",
+    line: { color: cumPnl >= 0 ? "#22c55e" : "#ef4444", width: 2 },
+    fillcolor: cumPnl >= 0 ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+    marker: { size: 6 },
+  }], {
+    margin: { l: 60, r: 20, t: 10, b: 40 },
+    template: "plotly_dark",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(20,20,30,1)",
+    yaxis: { title: "Cumulative P&L (JPY)" },
+    xaxis: { type: "date" },
+    hovermode: "x unified",
+    shapes: [{ type: "line", x0: dates[0], x1: dates[dates.length-1],
+               y0: 0, y1: 0, line: { color: "white", width: 0.5, dash: "dot" }}],
+  }, { responsive: true });
+}
+
+function renderTradeLog(data) {
+  var el = document.getElementById("tradeLog");
+  var allTrades = [];
+  data.strategies.forEach(function(st) {
+    (st.trades || []).forEach(function(t) {
+      t._strategy = st.strategy;
+      allTrades.push(t);
+    });
+  });
+  allTrades.sort(function(a, b) { return a.datetime > b.datetime ? -1 : 1; });
+
+  if (allTrades.length === 0) {
+    el.innerHTML = '<div class="empty">No trades yet. Waiting for signals...</div>';
+    return;
+  }
+
+  el.innerHTML = allTrades.slice(0, 50).map(function(t) {
+    var typeClass = t.type.replace("_", "_");
+    var pnlHtml = "";
+    if (t.pnl !== undefined) {
+      var c = t.pnl >= 0 ? "var(--green)" : "var(--red)";
+      pnlHtml = '<span class="pnl" style="color:' + c + '">' + (t.pnl >= 0 ? "+" : "") + fmt(Math.round(t.pnl)) + '</span>';
+    }
+    var dry = t.dryRun ? ' <span style="color:var(--yellow)">[DRY]</span>' : '';
+    return '<div class="trade-row">' +
+      '<span class="dt">' + new Date(t.datetime).toLocaleString("ja-JP") + '</span>' +
+      '<span class="type ' + typeClass + '">' + t.type.toUpperCase() + '</span>' +
+      '<span>[' + t._strategy + '] ' + fmt(t.price) + ' x ' + (t.size || "") + dry + '</span>' +
+      pnlHtml +
+    '</div>';
+  }).join("");
+}
+
+async function loadData() {
+  try {
+    var resp = await fetch("/api/trader");
+    var data = await resp.json();
+    renderSummary(data);
+    renderStrategies(data);
+    renderPnlChart(data);
+    renderTradeLog(data);
+  } catch (e) {
+    document.getElementById("stratCards").innerHTML =
+      '<div class="empty">Error: ' + e.message + '</div>';
+  }
+}
+
+loadData();
+setInterval(loadData, 30000);
+</script>
+
+</body>
+</html>

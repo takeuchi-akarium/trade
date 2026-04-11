@@ -25,6 +25,51 @@ python src/fetch_btc.py
 python -m pip install -r requirements.txt
 ```
 
+## シミュレーション
+
+全戦略は `src/strategies/` にパッケージ化されている。共通CLIで実行し、結果はFlaskダッシュボードで確認する。
+
+```bash
+# 戦略一覧
+python src/simulator/runner.py list
+
+# バックテスト（結果は data/simulations/ にJSON保存）
+python src/simulator/runner.py run --strategy rsi --symbol BTCUSDT --interval 1d
+python src/simulator/runner.py run --strategy btc_ma --symbol BTCUSDT --years 3
+
+# 複数戦略比較
+python src/simulator/runner.py compare --strategies rsi,bb,ema,vwap --symbol BTCUSDT
+
+# リアルタイムペーパートレード（常駐、Ctrl+Cで停止）
+python src/simulator/runner.py live --strategy rsi --symbol BTCUSDT --interval 5m
+
+# ダッシュボード起動 → ブラウザで確認
+python src/web/app.py
+# http://localhost:5000             ← メインダッシュボード
+# http://localhost:5000/simulations ← シミュレーション結果
+```
+
+### 登録済み戦略
+
+| 名前 | カテゴリ | 説明 |
+|------|---------|------|
+| `rsi` | short_term | RSI逆張り |
+| `bb` | short_term | ボリンジャーバンド |
+| `ema` | short_term | EMAクロス |
+| `vwap` | short_term | VWAP乖離 |
+| `btc_ma` | long_term | BTC MAクロス (Mid-Band Exit) |
+| `dual_momentum` | long_term | デュアルモメンタム (GEM) |
+| `leadlag` | long_term | 日米リードラグ (PCA SUB) |
+| `pair_bb` | pair | ペアトレード スプレッドBB |
+| `pair_ema` | pair | ペアトレード スプレッドEMA |
+
+### 新しい戦略の追加方法
+
+1. `src/strategies/新戦略/` フォルダを作成
+2. `__init__.py` に `Strategy` を継承したクラスを実装し `register()` を呼ぶ
+3. `src/strategies/__init__.py` に `import strategies.新戦略` を追加
+4. 完了 — CLIから使える
+
 ## ルール
 
 @.claude/rules/general.md
@@ -35,6 +80,10 @@ python -m pip install -r requirements.txt
 | エージェント | 説明 |
 |------------|------|
 | `researcher` | コードベースの調査・分析（影響範囲の特定、パターン分析など） |
+| `strategist` | 投資・トレード戦略の立案・評価（アイデア出し、リスク評価） |
+| `builder` | シミュレーション・バックテスト・自動売買のコード実装 |
+| `backtester` | バックテスト実行と結果分析（戦略の定量評価・比較） |
+| `test-runner` | テスト実行と失敗分析 |
 
 ## 利用可能なスキル
 

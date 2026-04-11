@@ -9,3 +9,5 @@ beautifulsoup4
 yfinance
 anthropic
 flask
+xlrd
+openpyxl
