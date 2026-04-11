@@ -60,3 +60,47 @@ leadlag:
   c_full_start: "2010-01-01"
   c_full_end: "2014-12-31"
   ai_comment: true
+
+# 日本小型株スクリーニング設定
+jp_stock:
+  screener:
+    marketCapMin: 1_000_000_000    # 10億円
+    marketCapMax: 10_000_000_000   # 100億円
+    minVolume: 30_000              # 3万株/日
+    minPrice: 200                  # 最低株価
+  watchlist: []                     # 手動追加の監視銘柄
+
+# 自動売買設定
+trader:
+  exchange: gmo
+  symbol: BTC
+  dry_run: true             # true=注文しない（明示的にfalseにするまで安全）
+  risk:
+    max_daily_loss_pct: 5   # 1日の最大損失%
+    price_change_limit: 10  # 急変動スキップ閾値%
+    stop_loss_pct: 5        # 逆指値の損切りライン（買値の-N%）
+
+  # 複数戦略を同時稼働
+  strategies:
+    - name: bb
+      mode: long             # ロングのみ（メイン）
+      interval: 1d
+      params:
+        period: 20
+        std: 2.0
+    - name: bb_ls
+      mode: long_short       # L/S（レンジ相場用、比率変動制で制御）
+      interval: 1d
+      params:
+        period: 20
+        std: 2.0
+
+  # 比率変動制: トレンドに応じてweight配分を自動調整
+  dynamic_weight:
+    enabled: true              # 比率変動制ON
+    trend_ma_period: 50        # トレンド判定用SMA期間
+    threshold: 2.0             # レジーム判定の乖離率閾値(%)
+    # デフォルト: 上昇=bb100%, レンジ=bb70%+bb_ls30%, 下落=全退避
+    # 下げ基調でbb_lsを使いたい場合はコメントを外す:
+    # regime_weights:
+    #   downtrend: {bb: 0, bb_ls: 100}
