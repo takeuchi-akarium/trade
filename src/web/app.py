@@ -13,6 +13,7 @@ WEB公開時の設計:
 """
 
 import json
+import os
 import sys
 import time
 import requests
@@ -107,8 +108,11 @@ def fetchLiveBtc():
 def loadJson(path):
   if not path.exists():
     return None
-  with open(path, "r", encoding="utf-8") as f:
-    return json.load(f)
+  try:
+    with open(path, "r", encoding="utf-8") as f:
+      return json.load(f)
+  except (json.JSONDecodeError, OSError):
+    return None
 
 
 def loadSignalLog(limit=50):
@@ -204,6 +208,97 @@ def apiDashboard():
   })
 
 
+# ── Simulations ──
+
+SIM_DIR = DATA_DIR / "simulations"
+SIM_LIVE_DIR = SIM_DIR / "live"
+
+
+@app.route("/simulations")
+def simulations():
+  return send_from_directory(ROOT / "docs", "simulations.html")
+
+
+@app.route("/api/simulations")
+def apiSimulations():
+  """保存済みバックテスト結果の一覧 + ライブシミュレーション状態"""
+  backtests = []
+  if SIM_DIR.exists():
+    for f in sorted(SIM_DIR.glob("*.json"), reverse=True):
+      try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        data["_filename"] = f.name
+        backtests.append(data)
+      except Exception:
+        pass
+
+  liveStates = []
+  if SIM_LIVE_DIR.exists():
+    for f in SIM_LIVE_DIR.glob("*.json"):
+      try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        data["_filename"] = f.name
+        liveStates.append(data)
+      except Exception:
+        pass
+
+  return jsonify({
+    "backtests": backtests,
+    "live": liveStates,
+  })
+
+
+@app.route("/api/simulations/<filename>")
+def apiSimulationDetail(filename):
+  """個別バックテスト結果の詳細"""
+  path = (SIM_DIR / filename).resolve()
+  if not path.is_relative_to(SIM_DIR.resolve()):
+    return jsonify({"error": "not found"}), 404
+  if not path.exists() or not path.suffix == ".json":
+    return jsonify({"error": "not found"}), 404
+  data = json.loads(path.read_text(encoding="utf-8"))
+  return jsonify(data)
+
+
+# ── Trader ──
+
+TRADER_DIR = DATA_DIR / "trader"
+
+
+@app.route("/trader")
+def trader():
+  return send_from_directory(ROOT / "docs", "trader.html")
+
+
+@app.route("/api/trader")
+def apiTrader():
+  """全戦略のトレード実績"""
+  strategies = []
+  if TRADER_DIR.exists():
+    for f in sorted(TRADER_DIR.glob("state_*.json")):
+      try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        strategies.append(data)
+      except Exception:
+        pass
+
+  # 合計
+  totalPnl = sum(s.get("totalPnl", 0) for s in strategies)
+  totalTrades = sum(s.get("totalTrades", 0) for s in strategies)
+  totalWins = sum(s.get("wins", 0) for s in strategies)
+
+  return jsonify({
+    "strategies": strategies,
+    "summary": {
+      "totalPnl": totalPnl,
+      "totalTrades": totalTrades,
+      "winRate": totalWins / totalTrades * 100 if totalTrades > 0 else 0,
+    },
+  })
+
+
 if __name__ == "__main__":
-  print("Dashboard: http://localhost:5000")
-  app.run(debug=True, port=5000)
+  print("Dashboard:    http://localhost:5000")
+  print("Simulations:  http://localhost:5000/simulations")
+  print("Trader:       http://localhost:5000/trader")
+  app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", port=5000)
