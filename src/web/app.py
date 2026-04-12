@@ -214,6 +214,11 @@ SIM_DIR = DATA_DIR / "simulations"
 SIM_LIVE_DIR = SIM_DIR / "live"
 
 
+@app.route("/strategy")
+def strategy():
+  return send_from_directory(ROOT / "docs", "strategy.html")
+
+
 @app.route("/simulations")
 def simulations():
   return send_from_directory(ROOT / "docs", "simulations.html")

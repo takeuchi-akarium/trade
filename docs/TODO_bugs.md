@@ -16,21 +16,27 @@
 - [x] ショートエントリー時の手数料未差引 — capital -= fee を追加
 - [x] ライブモードで未確定足のcloseでシグナル判定 — data.iloc[:-1]で確定足のみ使用
 - [x] ライブステータスの初期資金10万円ハードコード — state["initialCapital"]を参照
-- [ ] VWAPが日をまたいでリセットされない — `scalping/strategies.py:94-115`
+- [x] VWAPが日をまたいでリセットされない — `scalping/strategies.py:94-115`
 - [x] APIキー未設定で空文字認証リクエスト — Private API呼出前に_checkApiKey()
-- [ ] getBalance()のキー大文字小文字問題 — `gmo.py:98-107`
-- [ ] グリッド戦略のcapitalPerGrid再計算でサイズ不整合 — `grid/__init__.py:147-157`
-- [ ] API障害時リトライなし、O(N^2)メモリコピー — `fetch_btc.py:54-59`
-- [ ] yfinance MultiIndex互換性 — `dual_momentum/fetch_data.py:44`
+- [x] getBalance()のキー大文字小文字問題 — `gmo.py:98-107`
+- [x] グリッド戦略のcapitalPerGrid再計算でサイズ不整合 — `grid/__init__.py:147-157`
+- [x] API障害時リトライなし、O(N^2)メモリコピー — `fetch_btc.py:54-59`
+- [x] yfinance MultiIndex互換性 — `dual_momentum/fetch_data.py:44`
 - [x] pnl==0がlosses扱い — `engine.py:220-224` → pnl < 0 のみlossesに変更
+
+## 将来検討
+
+- [ ] マルチタイムフレーム: 日足ema_don + 4時間足bb — 4hbbが+44%/勝率72%と良好。資金増加後に検討
+- [ ] bb_ls戦略の改善 — 現状は負け戦略。改善できればdowntrendモード有効化
+- [ ] ドンチャン単独戦略の再評価 — 相場環境が変わった時に再検証
 
 ## 軽微
 
 - [x] loadJsonでJSONDecodeError未処理 — try/exceptでNone返却
-- [ ] 朝バッチでスタックトレース消失 — `batch_morning.py`
-- [ ] optimize.py, paper_trade.pyの相対import — `btc/optimize.py:13`
-- [ ] LINE Notify API終了済み — `notifier.py:93`
-- [ ] tradesリスト上限なし — `engine.py:131`
-- [ ] dryRun残高50,000円ハードコード — `engine.py:262`
+- [x] 朝バッチでスタックトレース消失 — `batch_morning.py`
+- [x] optimize.py, paper_trade.pyの相対import — `btc/optimize.py:13`
+- [x] LINE Notify API終了済み — `notifier.py:93`
+- [x] tradesリスト上限なし — `engine.py:131`
+- [x] dryRun残高50,000円ハードコード — `engine.py:262`
 - [x] calcCombinedSignalsのコメントと実装矛盾 — コメントを実装に合わせて修正
-- [ ] fetch_btc.pyの重複 — `btc/` と `strategies/btc/`
+- [x] fetch_btc.pyの重複 — `btc/` と `strategies/btc/`

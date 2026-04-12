@@ -77,8 +77,8 @@ def runGridBacktest(
   gridLevels = [rangeLower + gridStep * i for i in range(numGrids + 1)]
 
   # 各グリッドの状態: 価格より下のグリッドは「買い待ち」、上は「売り待ち」
-  # holdings[i] = True なら、gridLevels[i]で買ったポジションを保有中
-  holdings = [False] * (numGrids + 1)
+  # holdings[i] = 保有BTC数（0なら未保有）。エントリー時のサイズを記録して売り時に使う
+  holdings = [0.0] * (numGrids + 1)
   capitalPerGrid = initialCapital / (numGrids // 2 + 1)
 
   capital = initialCapital
@@ -94,7 +94,7 @@ def runGridBacktest(
       fee = capitalPerGrid * feeRate
       capital -= (capitalPerGrid + fee)
       totalBtc += size
-      holdings[i] = True
+      holdings[i] = size
 
   for idx in range(len(prices)):
     price = prices[idx]
@@ -129,7 +129,7 @@ def runGridBacktest(
         gridLevels = [rangeLower + gridStep * i for i in range(numGrids + 1)]
         stopLossPrice = centerPrice * (1 - stopLossPct / 100)
         stopHighPrice = centerPrice * (1 + stopLossPct / 100)
-        holdings = [False] * (numGrids + 1)
+        holdings = [0.0] * (numGrids + 1)
         capitalPerGrid = capital / (numGrids // 2 + 1)
 
         for i, level in enumerate(gridLevels):
@@ -138,7 +138,7 @@ def runGridBacktest(
             fee = capitalPerGrid * feeRate
             capital -= (capitalPerGrid + fee)
             totalBtc += size
-            holdings[i] = True
+            holdings[i] = size
 
       equity = capital + totalBtc * price
       equityList.append((dt, equity))
@@ -151,16 +151,16 @@ def runGridBacktest(
 
     # グリッド約定チェック
     for i, level in enumerate(gridLevels):
-      if holdings[i] and price >= level + gridStep:
-        # 売り: このグリッドで買ったポジションを1段上で利確
-        size = capitalPerGrid / level if level > 0 else 0
-        if size > 0 and size <= totalBtc:
+      if holdings[i] > 0 and price >= level + gridStep:
+        # 売り: エントリー時に記録したサイズそのままで利確（再計算しない）
+        size = holdings[i]
+        if size <= totalBtc:
           proceeds = size * (level + gridStep)
           fee = proceeds * feeRate
           pnl = size * gridStep - fee
           capital += proceeds - fee
           totalBtc -= size
-          holdings[i] = False
+          holdings[i] = 0.0
           trades.append({
             "datetime": dt, "type": "sell", "side": "grid",
             "price": level + gridStep, "size": size,
@@ -168,13 +168,13 @@ def runGridBacktest(
             "capitalAfter": capital,
           })
 
-      elif not holdings[i] and price <= level and capital >= capitalPerGrid:
-        # 買い: グリッドレベルまで下がったらエントリー
+      elif holdings[i] == 0.0 and price <= level and capital >= capitalPerGrid:
+        # 買い: グリッドレベルまで下がったらエントリー。サイズをholdingsに記録
         size = capitalPerGrid / price
         fee = capitalPerGrid * feeRate
         capital -= (capitalPerGrid + fee)
         totalBtc += size
-        holdings[i] = True
+        holdings[i] = size
         trades.append({
           "datetime": dt, "type": "buy", "side": "grid",
           "price": price, "size": size, "fee": fee,

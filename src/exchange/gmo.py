@@ -105,7 +105,8 @@ class GmoExchange(Exchange):
     data = self._privateGet("/v1/account/assets")
     result = {}
     for item in data:
-      sym = item.get("symbol", "")
+      # APIによって大文字/小文字が混在する場合があるため大文字に統一
+      sym = item.get("symbol", "").upper()
       result[sym] = {
         "amount": float(item.get("amount", 0)),
         "available": float(item.get("available", 0)),

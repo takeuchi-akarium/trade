@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from itertools import product
 from pathlib import Path
-from backtest import load_data, add_signals, run_backtest, calc_metrics, calc_equity_curve
+from strategies.btc.backtest import load_data, add_signals, run_backtest, calc_metrics, calc_equity_curve
 
 SHORT_RANGE     = range(5, 51, 5)    # 5, 10, 15, ... 50
 LONG_RANGE      = range(20, 201, 10) # 20, 30, 40, ... 200

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # 戦略ロジックをbacktest.pyから再利用
-from backtest import add_signals
+from strategies.btc.backtest import add_signals
 
 DATA_DIR    = Path("data")
 STATE_PATH  = DATA_DIR / "paper_state.json"
@@ -72,7 +72,7 @@ def append_log(dt, trade_type: str, price: float, capital: float, holding: float
 
 def fetch_latest() -> pd.DataFrame:
     """Binanceから最新の日足データを取得してCSVも更新する"""
-    from fetch_btc import fetch_ohlcv, save_csv
+    from strategies.btc.fetch_btc import fetch_ohlcv, save_csv
     df = fetch_ohlcv(symbol="BTCUSDT", interval="1d", years=1)
     save_csv(df, str(DATA_DIR / "btc_1d.csv"))
     return df

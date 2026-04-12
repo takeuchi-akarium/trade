@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategy Overview</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e1e4eb; --muted: #8b8fa3;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --blue: #3b82f6;
+    --purple: #a855f7; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+  }
+
+  /* Header */
+  .header {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; }
+  .header nav { display: flex; gap: 16px; }
+  .header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header a:hover { color: var(--text); }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* Hero */
+  .hero {
+    text-align: center; padding: 48px 0 32px;
+  }
+  .hero h2 {
+    font-size: 32px; font-weight: 800;
+    background: linear-gradient(135deg, var(--green), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .hero p { color: var(--muted); font-size: 15px; max-width: 560px; margin: 0 auto; }
+
+  /* Stats row */
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin: 32px 0;
+  }
+  .stat {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; text-align: center;
+  }
+  .stat .num { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Section */
+  .section { margin: 40px 0; }
+  .section-title {
+    font-size: 20px; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  /* Architecture diagram */
+  .arch {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px; position: relative; overflow: hidden;
+  }
+  .arch::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
+  }
+  .arch-layers {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .arch-layer {
+    display: flex; align-items: stretch; gap: 12px;
+  }
+  .arch-label {
+    min-width: 100px; background: rgba(255,255,255,0.03);
+    border-radius: 8px; padding: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    border-left: 3px solid var(--border);
+  }
+  .arch-items {
+    display: flex; gap: 8px; flex: 1; flex-wrap: wrap;
+  }
+  .arch-item {
+    flex: 1; min-width: 120px; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; text-align: center;
+  }
+  .arch-item .name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .arch-item .desc { font-size: 11px; color: var(--muted); }
+  .arch-item.green { border-color: rgba(34,197,94,0.3); }
+  .arch-item.blue { border-color: rgba(59,130,246,0.3); }
+  .arch-item.yellow { border-color: rgba(234,179,8,0.3); }
+  .arch-item.red { border-color: rgba(239,68,68,0.3); }
+  .arch-item.purple { border-color: rgba(168,85,247,0.3); }
+
+  /* Arrow between layers */
+  .arch-arrow {
+    text-align: center; color: var(--muted); font-size: 18px;
+    padding: 4px 0;
+  }
+
+  /* Strategy cards */
+  .strat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .strat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; position: relative; overflow: hidden;
+  }
+  .strat-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .strat-card.s-green::before { background: var(--green); }
+  .strat-card.s-blue::before { background: var(--blue); }
+  .strat-card.s-yellow::before { background: var(--yellow); }
+  .strat-card .s-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .strat-card .s-type { font-size: 11px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .strat-card .s-desc { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .strat-card .s-detail {
+    font-size: 12px; background: rgba(255,255,255,0.03);
+    border-radius: 6px; padding: 10px; line-height: 1.7;
+  }
+  .strat-card .s-detail code { color: var(--cyan); font-size: 11px; }
+
+  /* Regime table */
+  .regime-table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+    font-size: 14px;
+  }
+  .regime-table th, .regime-table td {
+    padding: 12px 16px; border: 1px solid var(--border); text-align: center;
+  }
+  .regime-table th {
+    background: rgba(255,255,255,0.03); font-weight: 700;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .regime-table .r-up { color: var(--green); }
+  .regime-table .r-range { color: var(--yellow); }
+  .regime-table .r-down { color: var(--red); }
+  .regime-table .pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* Funda */
+  .funda-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .funda-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .funda-item .f-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .funda-item .f-corr { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .funda-item .f-desc { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  /* Flow chart */
+  .flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap; margin: 16px 0;
+  }
+  .flow-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px; font-size: 13px;
+    text-align: center; min-width: 100px;
+  }
+  .flow-box.highlight { border-color: var(--green); color: var(--green); font-weight: 700; }
+  .flow-arrow { color: var(--muted); font-size: 18px; }
+
+  /* Backtest results */
+  .bt-table {
+    width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;
+  }
+  .bt-table th, .bt-table td {
+    padding: 10px 14px; border: 1px solid var(--border);
+  }
+  .bt-table th {
+    background: rgba(255,255,255,0.03); font-weight: 700;
+    font-size: 11px; text-transform: uppercase;
+  }
+  .bt-table td { font-variant-numeric: tabular-nums; text-align: right; }
+  .bt-table td:first-child { text-align: left; font-weight: 600; }
+  .bt-table .good { color: var(--green); }
+  .bt-table .bad { color: var(--red); }
+  .bt-table .best { background: rgba(34,197,94,0.08); }
+
+  /* Callout */
+  .callout {
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 13px; line-height: 1.6;
+  }
+  .callout .callout-title { font-weight: 700; margin-bottom: 4px; color: var(--blue); }
+
+  @media (max-width: 700px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .strat-cards { grid-template-columns: 1fr; }
+    .funda-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Strategy Overview</h1>
+  <nav>
+    <a href="/">&larr; Dashboard</a>
+    <a href="/trader">Trader</a>
+    <a href="/simulations">Simulations</a>
+  </nav>
+</div>
+
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h2>BTC Adaptive Trading System</h2>
+    <p>テクニカル + ファンダメンタルの多層制御で、あらゆる相場環境に適応する自動売買システム</p>
+  </div>
+
+  <!-- 概要説明 -->
+  <div class="callout" style="margin-bottom: 32px;">
+    <div class="callout-title">このシステムの考え方</div>
+    相場には「上昇」「横ばい」「下落」の3つの局面がある。それぞれに得意な戦略は違う。<br><br>
+    <strong>上昇局面:</strong> トレンドに乗って持ち続ける戦略（ema_don）が主役<br>
+    <strong>横ばい局面:</strong> 安い時に買って高い時に売る逆張り戦略（bb）が主役<br>
+    <strong>下落局面:</strong> 何もしない。現金で待機<br><br>
+    この切り替えを50日移動平均線（SMA50）で自動判定し、さらにゴールド・米国債・市場心理の3つの指標で判定精度を高めている。
+  </div>
+
+  <!-- Key Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="num" style="color: var(--green)">+680%</div>
+      <div class="lbl">バックテスト収益 (5.5年)</div>
+    </div>
+    <div class="stat">
+      <div class="num" style="color: var(--cyan)">-10.8%</div>
+      <div class="lbl">最大ドローダウン</div>
+    </div>
+    <div class="stat">
+      <div class="num" style="color: var(--yellow)">3</div>
+      <div class="lbl">稼働戦略数</div>
+    </div>
+    <div class="stat">
+      <div class="num" style="color: var(--purple)">+0.345</div>
+      <div class="lbl">ファンダ相関</div>
+    </div>
+  </div>
+
+  <!-- Architecture -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(59,130,246,0.15); color: var(--blue);">&#9881;</div>
+      System Architecture
+    </div>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+      3つの層が連携して動く。上から順に「今の相場を読む → 資金を配る → 売買する」という流れ。
+    </p>
+    <div class="arch">
+      <div class="arch-layers">
+        <!-- Layer 3 -->
+        <div class="arch-layer">
+          <div class="arch-label" style="border-color: var(--purple);">Layer 3<br>Funda</div>
+          <div class="arch-items">
+            <div class="arch-item purple">
+              <div class="name">ゴールド</div>
+              <div class="desc">50日モメンタム(反転)<br>相関: -0.31</div>
+            </div>
+            <div class="arch-item purple">
+              <div class="name">米10年債</div>
+              <div class="desc">20日変化率<br>相関: +0.28</div>
+            </div>
+            <div class="arch-item purple">
+              <div class="name">Fear & Greed</div>
+              <div class="desc">7日-30日の変化速度<br>相関: +0.17</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--muted); text-align:center; padding:2px 0;">
+          外部指標から「これからBTCが上がりそうか下がりそうか」を予測し、Layer 2の判定タイミングを微調整する
+        </div>
+
+        <div class="arch-arrow">&darr; Early Transition + Boost &darr;</div>
+
+        <!-- Layer 2 -->
+        <div class="arch-layer">
+          <div class="arch-label" style="border-color: var(--blue);">Layer 2<br>Regime</div>
+          <div class="arch-items">
+            <div class="arch-item green">
+              <div class="name">Uptrend</div>
+              <div class="desc">SMA50 > +2%<br>ema_don 70% + bb 30%</div>
+            </div>
+            <div class="arch-item yellow">
+              <div class="name">Range</div>
+              <div class="desc">SMA50 &plusmn;2%<br>bb 70% + ema_don 10% + bb_ls 20%</div>
+            </div>
+            <div class="arch-item red">
+              <div class="name">Downtrend</div>
+              <div class="desc">SMA50 < -2%<br>All Exit (0%)</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--muted); text-align:center; padding:2px 0;">
+          「今どんな相場か」を判定し、得意な戦略に多く資金を配分する。下落時は全額退避。
+        </div>
+
+        <div class="arch-arrow">&darr; Weight Allocation &darr;</div>
+
+        <!-- Layer 1 -->
+        <div class="arch-layer">
+          <div class="arch-label" style="border-color: var(--green);">Layer 1<br>Strategy</div>
+          <div class="arch-items">
+            <div class="arch-item green">
+              <div class="name">bb</div>
+              <div class="desc">下がりすぎで買う<br>（逆張り）</div>
+            </div>
+            <div class="arch-item blue">
+              <div class="name">ema_don</div>
+              <div class="desc">上昇トレンドに乗る<br>（順張り）</div>
+            </div>
+            <div class="arch-item yellow">
+              <div class="name">bb_ls</div>
+              <div class="desc">上下どちらも取る<br>（レンジ用）</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--muted); text-align:center; padding:2px 0;">
+          配分された資金で実際に売買する。それぞれ得意な相場が違うので、組み合わせて弱点を補う。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Strategies -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(34,197,94,0.15); color: var(--green);">&#9733;</div>
+      Strategies
+    </div>
+    <div class="strat-cards">
+      <div class="strat-card s-green">
+        <div class="s-name">bb</div>
+        <div class="s-type">逆張り / ロングのみ</div>
+        <div class="s-desc">ボリンジャーバンド（過去20日の値動き幅）の下限に触れたら「下がりすぎ」と判断して買う。平均に戻る力を利用する戦略。</div>
+        <div class="s-detail">
+          <code>BB(20, 2&sigma;)</code><br>
+          Buy: close &le; Lower Band<br>
+          Sell: close &ge; Upper Band<br>
+          Best in: <span style="color:var(--yellow)">Range</span>
+        </div>
+      </div>
+      <div class="strat-card s-blue">
+        <div class="s-name">ema_don</div>
+        <div class="s-type">順張り / ロングのみ</div>
+        <div class="s-desc">短期(10日)と長期(50日)の移動平均が交差したら「トレンド発生」と判断して買う。上がっている間は持ち続ける。EMAが不在の時はドンチャン（直近高値ブレイク）で補完。</div>
+        <div class="s-detail">
+          <code>EMA(10, 50)</code> + <code>Donchian(20, 10)</code><br>
+          Buy: Golden Cross or Breakout<br>
+          Sell: Dead Cross<br>
+          Best in: <span style="color:var(--green)">Uptrend</span>
+        </div>
+      </div>
+      <div class="strat-card s-yellow">
+        <div class="s-name">bb_ls</div>
+        <div class="s-type">逆張り / ロング&ショート</div>
+        <div class="s-desc">bbと同じボリンジャーバンドだが、上限タッチで空売り（下落に賭ける）もできる。横ばい相場専用。損切り3%で暴走を防止。</div>
+        <div class="s-detail">
+          <code>BB(20, 2&sigma;)</code> + <code>SL 3%</code><br>
+          Buy: close &le; Lower Band<br>
+          Short: close &ge; Upper Band<br>
+          Best in: <span style="color:var(--yellow)">Range</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top: 20px;">
+      <div class="callout-title">なぜこの組み合わせか？</div>
+      bb (逆張り) は上昇トレンドでLowerに触れないため沈黙する。ema_don (順張り) が上昇中の99.8%でポジションを保有し、この穴を完全に埋める。2つは同じ日に買いシグナルを出すことがほぼなく、互いに補完し合う。
+    </div>
+  </div>
+
+  <!-- Regime Control -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(234,179,8,0.15); color: var(--yellow);">&#8645;</div>
+      Dynamic Weight Control
+    </div>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+      過去50日の平均価格（SMA50）と現在価格の乖離率で「今はどんな相場か」を判定し、各戦略への資金配分を毎日自動で調整する。上昇中は順張りに多く配分し、下落中は全額退避する。
+    </p>
+    <table class="regime-table">
+      <tr>
+        <th>Regime</th>
+        <th>Condition</th>
+        <th>bb</th>
+        <th>ema_don</th>
+        <th>bb_ls</th>
+        <th>Cash</th>
+      </tr>
+      <tr>
+        <td class="r-up" style="font-weight:700">Uptrend</td>
+        <td>close > SMA50 &times; 1.02</td>
+        <td class="pct">30%</td>
+        <td class="pct" style="color:var(--green)">70%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+      </tr>
+      <tr>
+        <td class="r-range" style="font-weight:700">Range</td>
+        <td>SMA50 &plusmn; 2%</td>
+        <td class="pct" style="color:var(--green)">70%</td>
+        <td class="pct">10%</td>
+        <td class="pct">20%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+      </tr>
+      <tr>
+        <td class="r-down" style="font-weight:700">Downtrend</td>
+        <td>close < SMA50 &times; 0.98</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--red)">100%</td>
+      </tr>
+    </table>
+
+    <!-- Funda Adjustment -->
+    <div style="margin-top: 24px;">
+      <h4 style="font-size: 15px; margin-bottom: 12px;">Fundamental Score Adjustment</h4>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
+        3つのマクロ指標から算出したファンダスコアで、レジーム判定のタイミングを微調整する。<br>
+        数字は「BTC 30日後リターンとの相関」。+1.0なら完全に連動、-1.0なら完全に逆。0.3前後は「弱いが統計的に有意」で、公開データから得られる中ではかなり良い水準。
+      </p>
+      <div class="funda-grid">
+        <div class="funda-item">
+          <div class="f-name">ゴールド</div>
+          <div class="f-corr" style="color: var(--red)">-0.31</div>
+          <div class="f-desc">50日モメンタム(反転)。ゴールド上昇 = BTC弱気。安全資産への資金シフトを検知。</div>
+        </div>
+        <div class="funda-item">
+          <div class="f-name">米10年債利回り</div>
+          <div class="f-corr" style="color: var(--green)">+0.28</div>
+          <div class="f-desc">20日変化。金利上昇 = リスクオン = BTC追い風。景気の強さを反映。</div>
+        </div>
+        <div class="funda-item">
+          <div class="f-name">Fear & Greed</div>
+          <div class="f-corr" style="color: var(--green)">+0.17</div>
+          <div class="f-desc">7日-30日平均の乖離。恐怖から回復する「変化の速度」が重要。レベルより方向。</div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top: 16px; border-color: rgba(168,85,247,0.2); background: rgba(168,85,247,0.08);">
+        <div class="callout-title" style="color: var(--purple);">仕組み</div>
+        <strong>Early Transition（早期転換）:</strong> テクニカルがレジーム境界付近にいる時、ファンダで数日早く判定を切り替える。<br>
+        <span style="color: var(--muted);">例: SMA50乖離+3% + ファンダ弱気 &rarr; uptrendではなくrangeとして扱う</span><br><br>
+        <strong>Boost（確信度ブースト）:</strong> テクニカルもファンダも強気なら、ema_don比率を70% &rarr; 90%にブースト。<br>
+        <span style="color: var(--muted);">例: uptrend + ファンダスコア > 0.5 &rarr; ema_don 90% / bb 10%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backtest Results -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(6,182,212,0.15); color: var(--cyan);">&#9776;</div>
+      Backtest Results
+    </div>
+
+    <h4 style="font-size: 14px; color: var(--muted); margin-bottom: 12px;">実データ (BTCUSDT, 5.5年間)</h4>
+    <table class="bt-table">
+      <tr>
+        <th style="text-align:left">構成</th>
+        <th>Return</th>
+        <th>MDD</th>
+        <th>Trades</th>
+      </tr>
+      <tr class="best">
+        <td>比率変動制 + ファンダ補正</td>
+        <td class="good">+680%</td>
+        <td>-10.8%</td>
+        <td>70</td>
+      </tr>
+      <tr>
+        <td>比率変動制（テクニカルのみ）</td>
+        <td class="good">+480%</td>
+        <td>-10.8%</td>
+        <td>70</td>
+      </tr>
+      <tr>
+        <td>bb 単体</td>
+        <td class="good">+42%</td>
+        <td class="bad">-32.2%</td>
+        <td>12</td>
+      </tr>
+      <tr>
+        <td>ema_don 単体</td>
+        <td class="good">+159%</td>
+        <td class="bad">-32.2%</td>
+        <td>13</td>
+      </tr>
+      <tr>
+        <td>bb_ls 単体</td>
+        <td class="bad">-6%</td>
+        <td class="bad">-58.0%</td>
+        <td>45</td>
+      </tr>
+    </table>
+    <p style="color: var(--muted); font-size: 11px; margin-top: 4px;">
+      MDD = Maximum Drawdown（最大ドローダウン）。ピークからの最大下落率。-10.8%なら最も凹んだ時でも資産の約9割を維持。<br>
+      単体で使うとMDD -30〜58%だが、比率変動制で組み合わせると-10.8%に抑制される。Trades = 全戦略の合計売買回数（bb 12 + ema_don 13 + bb_ls 45）。
+    </p>
+
+    <h4 style="font-size: 14px; color: var(--muted); margin: 24px 0 12px;">年別パフォーマンス</h4>
+    <table class="bt-table">
+      <tr>
+        <th style="text-align:left">Year</th>
+        <th style="text-align:left">相場</th>
+        <th>BTC</th>
+        <th>比率変動制</th>
+      </tr>
+      <tr>
+        <td>2023</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">底打ち→回復 ($25k→$42k)</td>
+        <td class="good">+41.6%</td>
+        <td class="good">+25.3%</td>
+      </tr>
+      <tr class="best">
+        <td>2024</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">大上昇 ($44k→$106k→$93k)</td>
+        <td class="good">+111.8%</td>
+        <td class="good" style="font-weight:700">+157.1%</td>
+      </tr>
+      <tr>
+        <td>2025</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">高値圏→下落 ($94k→$124k→$87k)</td>
+        <td class="bad">-7.3%</td>
+        <td class="good" style="font-weight:700">+42.3%</td>
+      </tr>
+      <tr>
+        <td>2026</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">暴落継続 ($88k→$62k→$71k)</td>
+        <td class="bad">-19.4%</td>
+        <td class="bad">-6.8%</td>
+      </tr>
+    </table>
+    <p style="color: var(--muted); font-size: 11px; margin-top: 4px;">
+      2024年: BTCを上回るリターン。上昇トレンドでema_donが利益を最大化。<br>
+      2025年: BTC下落の中+42%。downtrend全退避で損失を回避しつつ、レンジでbbが稼いだ。<br>
+      2026年: 唯一のマイナス年だが、BTCの-19%に対して-6.8%に抑制。
+    </p>
+
+    <h4 style="font-size: 14px; color: var(--muted); margin: 24px 0 12px;">シナリオテスト (6シナリオ、確率加重)</h4>
+    <table class="bt-table">
+      <tr>
+        <th style="text-align:left">Scenario</th>
+        <th>Prob</th>
+        <th>Return</th>
+      </tr>
+      <tr><td>Bear &rarr; Recovery</td><td>15%</td><td class="good">+187%</td></tr>
+      <tr><td>Range (&plusmn;20%)</td><td>25%</td><td class="good">+191%</td></tr>
+      <tr><td>Crash &rarr; V-Recovery</td><td>10%</td><td class="good">+352%</td></tr>
+      <tr><td>Slow Bleed (-40%)</td><td>20%</td><td class="good">+144%</td></tr>
+      <tr><td>Bubble Burst (3x &rarr; -70%)</td><td>15%</td><td class="good">+179%</td></tr>
+      <tr><td>Sideways &rarr; Breakout</td><td>15%</td><td class="good">+93%</td></tr>
+      <tr class="best">
+        <td style="font-weight:700">Expected Return</td>
+        <td></td>
+        <td class="good" style="font-weight:700">+181%</td>
+      </tr>
+    </table>
+
+    <div class="callout">
+      <div class="callout-title">全シナリオでプラス</div>
+      最悪ケース(ヨコヨコ&rarr;急騰)でも+93%。単体戦略はいずれかのシナリオでマイナスになるが、比率変動制は全シナリオで利益を確保。
+    </div>
+  </div>
+
+  <!-- Decision Flow -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(34,197,94,0.15); color: var(--green);">&#8594;</div>
+      Daily Decision Flow
+    </div>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">
+      毎日1回、以下のステップで売買判断を行う。
+    </p>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <!-- Step 1 -->
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--blue); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--blue);">1</div>
+        <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">データ取得</div>
+          <div style="font-size:12px; color:var(--muted);">BTC日足（Binance）+ ゴールド・米10年債・Fear&Greed を取得</div>
+        </div>
+      </div>
+      <!-- Step 2 -->
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--blue); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--blue);">2</div>
+        <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">相場判定</div>
+          <div style="font-size:12px; color:var(--muted);">SMA50との乖離率で <span style="color:var(--green)">上昇</span> / <span style="color:var(--yellow)">レンジ</span> / <span style="color:var(--red)">下落</span> を判定。ファンダスコアで境界付近の判定を微調整。</div>
+        </div>
+      </div>
+      <!-- Step 3 -->
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--yellow); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--yellow);">3</div>
+        <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">資金配分</div>
+          <div style="font-size:12px; color:var(--muted);">レジームに応じて3戦略に資金を振り分ける。下落判定なら全額を現金退避。</div>
+        </div>
+      </div>
+      <!-- Step 4 -->
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--purple); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--purple);">4</div>
+        <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">シグナル生成</div>
+          <div style="font-size:12px; color:var(--muted);">各戦略がテクニカル指標（BB, EMA, ドンチャン）から売買シグナルを算出。</div>
+        </div>
+      </div>
+      <!-- Step 5 -->
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--green); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--green);">5</div>
+        <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">注文実行</div>
+          <div style="font-size:12px; color:var(--muted);">買い/売りシグナルが出たら指値注文。約定確認後にストップロスを設定。未約定ならキャンセル。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:48px; padding-top:16px; border-top:1px solid var(--border);">
+    BTC Adaptive Trading System &mdash; Backtest period: 2020-10 ~ 2026-04 &mdash; Past performance does not guarantee future results
+  </div>
+
+</div>
+
+</body>
+</html>

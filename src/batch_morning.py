@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv(ROOT / ".env")
 
 import json
+import traceback
 import requests
 from datetime import datetime, timedelta, timezone
 
@@ -53,6 +54,7 @@ def buildBtcSection():
       lines.append(f"  24h高値: ${high:,.0f} / 安値: ${low:,.0f}")
     return "\n".join(lines)
   except Exception as e:
+    log("batch_morning", f"buildBtcSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 
@@ -92,6 +94,7 @@ def buildMacroSection(config):
       lines.append(f"  {k}: {v} ({scoreStr})")
     return "\n".join(lines)
   except Exception as e:
+    log("batch_morning", f"buildMacroSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 
@@ -134,6 +137,7 @@ def buildFundaSection():
 
     return "\n".join(lines)
   except Exception as e:
+    log("batch_morning", f"buildFundaSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 
@@ -180,6 +184,7 @@ def buildRssSection(config):
       lines.append(f"  [{icon}{abs(score)}] {item['title']} ({item['source']})\n    {item['url']}")
     return "\n".join(lines)
   except Exception as e:
+    log("batch_morning", f"buildRssSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 
@@ -234,6 +239,7 @@ def buildTdnetSection(config):
       lines.append(f"  [{icon}{abs(score)}] {item['code']} {item['name']} {kwStr}{role_tag}\n    {item['url']}")
     return "\n".join(lines)
   except Exception as e:
+    log("batch_morning", f"buildTdnetSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 
@@ -411,6 +417,7 @@ def buildJpMomentumSection():
 
     return "\n".join(lines)
   except Exception as e:
+    log("batch_morning", f"buildJpMomentumSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 
@@ -444,6 +451,7 @@ def buildDualMomentumSection(config):
 
     return report
   except Exception as e:
+    log("batch_morning", f"buildDualMomentumSection error: {traceback.format_exc()}")
     return f"  取得失敗: {e}"
 
 

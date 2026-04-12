@@ -44,21 +44,38 @@ CANDLES_PER_YEAR = {
     "1h": 8_760, "4h": 2_190, "1d": 365,
 }
 
-def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1d", years: int = 1) -> pd.DataFrame:
+def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1d", years: int = 1,
+                max_retries: int = 3, retry_wait: float = 2.0) -> pd.DataFrame:
     """Binanceから指定年数分のOHLCVデータを取得（ページネーション対応）"""
+    import time as _time
+    # O(N^2)コピーを避けるため新しいバッチを後ろに追加してから最後に逆順にする
     all_raw = []
     end_time_ms = None
 
     candles_needed = CANDLES_PER_YEAR.get(interval, 365) * years
     batches_needed = -(- candles_needed // 1000)  # 切り上げ除算
     for _ in range(batches_needed):
-        batch = _fetch_batch(symbol, interval, end_time_ms)
+        batch = None
+        for attempt in range(max_retries):
+            try:
+                batch = _fetch_batch(symbol, interval, end_time_ms)
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    _time.sleep(retry_wait * (attempt + 1))
+                else:
+                    raise RuntimeError(f"Binance API取得失敗 ({max_retries}回リトライ): {e}") from e
         if not batch:
             break
-        all_raw = batch + all_raw
+        all_raw.append(batch)
         end_time_ms = batch[0][0] - 1  # 最古の足の1ms前
 
-    df = pd.DataFrame(all_raw, columns=[
+    # リストを逆順に結合（古い順に並べる）
+    merged = []
+    for batch in reversed(all_raw):
+        merged.extend(batch)
+
+    df = pd.DataFrame(merged, columns=[
         "open_time", "open", "high", "low", "close", "volume",
         "close_time", "quote_volume", "trades",
         "taker_buy_base", "taker_buy_quote", "ignore"

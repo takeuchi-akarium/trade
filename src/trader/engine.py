@@ -126,12 +126,18 @@ def _loadState(strategyName: str) -> dict:
     "wins": 0,
     "losses": 0,
     "totalPnl": 0,
-    "trades": [],
+    "trades": [],  # 直近500件のみ保持
   }
+
+
+MAX_TRADES_HISTORY = 500  # メモリ肥大化防止のため直近N件のみ保持
 
 
 def _saveState(strategyName: str, state: dict) -> None:
   STATE_DIR.mkdir(parents=True, exist_ok=True)
+  # tradesが上限を超えたら古いものを切り捨て
+  if len(state.get("trades", [])) > MAX_TRADES_HISTORY:
+    state["trades"] = state["trades"][-MAX_TRADES_HISTORY:]
   state["updatedAt"] = datetime.now(JST).isoformat()
   _stateFile(strategyName).write_text(
     json.dumps(state, indent=2, ensure_ascii=False, default=str),
@@ -395,8 +401,10 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
 
   # 残高
   if dryRun:
-    totalEquity = 50000
-    availableJpy = 50000
+    # config.yaml の trader.dry_run_balance で設定可能（未設定時は100,000円）
+    dryBalance = traderCfg.get("dry_run_balance", 100_000)
+    totalEquity = dryBalance
+    availableJpy = dryBalance
     print(f"  balance (dry): {totalEquity:,.0f} JPY")
   else:
     balance = exchange.getBalance()

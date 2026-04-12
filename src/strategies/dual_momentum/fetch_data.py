@@ -13,6 +13,27 @@ from dual_momentum.constants import ALL_TICKERS
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "dual_momentum"
 
 
+def _extractClose(raw: "pd.DataFrame") -> "pd.DataFrame":
+  """
+  yfinance のダウンロード結果から Close 列を取り出す。
+  新バージョン (>=0.2.x) では columns が MultiIndex になる場合があるため
+  どちらの形式でも正しく処理する。
+  """
+  cols = raw.columns
+  if isinstance(cols, pd.MultiIndex):
+    # MultiIndex: ("Close", "AAPL") のようなタプル
+    close = raw["Close"]
+    if isinstance(close, pd.Series):
+      # ティッカーが1つの場合はSeriesになる
+      close = close.to_frame(name=ALL_TICKERS[0])
+  else:
+    if "Close" in cols:
+      close = raw[["Close"]].rename(columns={"Close": ALL_TICKERS[0]}) if len(ALL_TICKERS) == 1 else raw["Close"]
+    else:
+      close = raw
+  return close
+
+
 def fetchPrices(start="2003-01-01", end=None):
   """
   全ETFの月次終値を取得。
@@ -41,7 +62,7 @@ def fetchPrices(start="2003-01-01", end=None):
     if raw.empty or len(raw) < 2:
       return existing
 
-    close = raw["Close"] if len(ALL_TICKERS) > 1 else raw[["Close"]].rename(columns={"Close": ALL_TICKERS[0]})
+    close = _extractClose(raw)
     monthly = close.resample("ME").last().dropna(how="all")
 
     if not monthly.empty:
@@ -61,7 +82,7 @@ def fetchPrices(start="2003-01-01", end=None):
   if raw.empty:
     raise RuntimeError("価格データの取得に失敗しました")
 
-  close = raw["Close"] if len(ALL_TICKERS) > 1 else raw[["Close"]].rename(columns={"Close": ALL_TICKERS[0]})
+  close = _extractClose(raw)
   monthly = close.resample("ME").last().dropna(how="all")
   monthly.to_csv(cachePath)
   return monthly

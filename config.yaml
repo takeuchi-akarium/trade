@@ -75,6 +75,7 @@ trader:
   exchange: gmo
   symbol: BTC
   dry_run: true             # true=注文しない（明示的にfalseにするまで安全）
+  dry_run_balance: 100000   # ドライラン時の仮想残高（円）。実資金に合わせて設定
   risk:
     max_daily_loss_pct: 5   # 1日の最大損失%
     price_change_limit: 10  # 急変動スキップ閾値%

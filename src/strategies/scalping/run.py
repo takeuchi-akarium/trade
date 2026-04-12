@@ -46,7 +46,7 @@ def _isBinanceSymbol(symbol: str) -> bool:
 def fetchData(symbol: str, interval: str = "1d", years: int = 1) -> pd.DataFrame:
   """銘柄名から自動判定してデータ取得"""
   if _isBinanceSymbol(symbol):
-    from btc.fetch_btc import fetch_ohlcv
+    from strategies.btc.fetch_btc import fetch_ohlcv
     print(f"Binance APIから {symbol} {interval} を取得中...")
     return fetch_ohlcv(symbol=symbol.upper(), interval=interval, years=years)
   else:

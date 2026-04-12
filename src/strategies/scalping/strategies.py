@@ -194,13 +194,17 @@ def calcVwap(df: pd.DataFrame,
              threshold: float = 1.0) -> pd.DataFrame:
   """
   VWAP乖離率で平均回帰を狙う。
+  日付が変わるたびに累積をリセットして日次VWAPを計算する。
   volumeが無い場合はSMA代替(period=20)でフォールバック。
   """
   df = df.copy()
 
   if "volume" in df.columns and df["volume"].sum() > 0:
-    cumVol = df["volume"].cumsum()
-    cumTp = (df["close"] * df["volume"]).cumsum()
+    # 日付ごとにグループ化して累積をリセット（日次VWAP）
+    date = df.index.normalize() if hasattr(df.index, "normalize") else pd.to_datetime(df.index).normalize()
+    tp = df["close"] * df["volume"]
+    cumTp = tp.groupby(date).cumsum()
+    cumVol = df["volume"].groupby(date).cumsum()
     df["vwap"] = cumTp / cumVol.replace(0, np.nan)
   else:
     # volume無し → 20期間SMAで代替

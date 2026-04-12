@@ -72,7 +72,7 @@ def append_log(dt, trade_type: str, price: float, capital: float, holding: float
 
 def fetch_latest() -> pd.DataFrame:
     """Binanceから最新の日足データを取得してCSVも更新する"""
-    from fetch_btc import fetch_ohlcv, save_csv
+    from strategies.btc.fetch_btc import fetch_ohlcv, save_csv
     df = fetch_ohlcv(symbol="BTCUSDT", interval="1d", years=1)
     save_csv(df, str(DATA_DIR / "btc_1d.csv"))
     return df
