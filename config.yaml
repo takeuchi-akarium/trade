@@ -122,6 +122,6 @@ trader:
       down_zone: -10.0         # 下落圏の境界
       threshold: 0.3           # Early Transition発動閾値
       boost_threshold: 0.5     # Boost発動閾値
-      gold_days: 60            # ゴールド履歴取得日数
-      tnx_days: 30             # 10年債履歴取得日数
+      gold_days: 80            # ゴールド履歴取得日数（51取引日以上必要）
+      tnx_days: 35             # 10年債履歴取得日数（21取引日以上必要）
       fng_days: 40             # FnG履歴取得日数

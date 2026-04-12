@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Strategy Overview</title>
+<title>DART - Dynamic Adaptive Regime Trading</title>
 <style>
   :root {
     --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
@@ -218,13 +218,14 @@
 
   <!-- Hero -->
   <div class="hero">
-    <h2>BTC Adaptive Trading System</h2>
-    <p>テクニカル + ファンダメンタルの多層制御で、あらゆる相場環境に適応する自動売買システム</p>
+    <h2>DART</h2>
+    <p style="font-size:13px; color:var(--muted); margin-bottom:4px; letter-spacing:1px;">Dynamic Adaptive Regime Trading</p>
+    <p>テクニカル + ファンダメンタルの多層制御で、あらゆる相場環境に適応するBTC自動売買戦略</p>
   </div>
 
   <!-- 概要説明 -->
   <div class="callout" style="margin-bottom: 32px;">
-    <div class="callout-title">このシステムの考え方</div>
+    <div class="callout-title">DARTの考え方</div>
     相場には「上昇」「横ばい」「下落」の3つの局面がある。それぞれに得意な戦略は違う。<br><br>
     <strong>上昇局面:</strong> トレンドに乗って持ち続ける戦略（ema_don）が主役<br>
     <strong>横ばい局面:</strong> 安い時に買って高い時に売る逆張り戦略（bb）が主役<br>
@@ -235,8 +236,8 @@
   <!-- Key Stats -->
   <div class="stats">
     <div class="stat">
-      <div class="num" style="color: var(--green)">+680%</div>
-      <div class="lbl">バックテスト収益 (5.5年)</div>
+      <div class="num" style="color: var(--green)">+630%</div>
+      <div class="lbl">バックテスト収益 (2.7年)</div>
     </div>
     <div class="stat">
       <div class="num" style="color: var(--cyan)">-10.8%</div>
@@ -247,8 +248,8 @@
       <div class="lbl">稼働戦略数</div>
     </div>
     <div class="stat">
-      <div class="num" style="color: var(--purple)">+0.345</div>
-      <div class="lbl">ファンダ相関</div>
+      <div class="num" style="color: var(--purple)">+0.143</div>
+      <div class="lbl">ファンダ相関 (p&lt;0.001)</div>
     </div>
   </div>
 
@@ -368,9 +369,9 @@
       <div class="strat-card s-yellow">
         <div class="s-name">bb_ls</div>
         <div class="s-type">逆張り / ロング&ショート</div>
-        <div class="s-desc">bbと同じボリンジャーバンドだが、上限タッチで空売り（下落に賭ける）もできる。横ばい相場専用。損切り3%で暴走を防止。</div>
+        <div class="s-desc">bbと同じボリンジャーバンドだが、上限タッチで空売り（下落に賭ける）もできる。横ばい相場専用。損切り5%で暴走を防止。</div>
         <div class="s-detail">
-          <code>BB(20, 2&sigma;)</code> + <code>SL 3%</code><br>
+          <code>BB(20, 2&sigma;)</code> + <code>SL 5%</code><br>
           Buy: close &le; Lower Band<br>
           Short: close &ge; Upper Band<br>
           Best in: <span style="color:var(--yellow)">Range</span>
@@ -433,7 +434,7 @@
       <h4 style="font-size: 15px; margin-bottom: 12px;">Fundamental Score Adjustment</h4>
       <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">
         3つのマクロ指標から算出したファンダスコアで、レジーム判定のタイミングを微調整する。<br>
-        数字は「BTC 30日後リターンとの相関」。+1.0なら完全に連動、-1.0なら完全に逆。0.3前後は「弱いが統計的に有意」で、公開データから得られる中ではかなり良い水準。
+        数字は各指標単体のBTC 30日後リターンとの相関。合成スコアの相関は+0.143（p&lt;0.001, n=970）。相関の強さ自体は弱いが、統計的に「偶然ではない」ことは確実。この弱い相関を「ここぞという時だけ」発動させることで、テクニカルのみ比+50ptの改善を実現している。
       </p>
       <div class="funda-grid">
         <div class="funda-item">
@@ -470,7 +471,7 @@
       Backtest Results
     </div>
 
-    <h4 style="font-size: 14px; color: var(--muted); margin-bottom: 12px;">実データ (BTCUSDT, 5.5年間)</h4>
+    <h4 style="font-size: 14px; color: var(--muted); margin-bottom: 12px;">実データ (BTCUSDT 1000日, 2023/7〜2026/4)</h4>
     <table class="bt-table">
       <tr>
         <th style="text-align:left">構成</th>
@@ -480,38 +481,38 @@
       </tr>
       <tr class="best">
         <td>比率変動制 + ファンダ補正</td>
-        <td class="good">+680%</td>
+        <td class="good">+630%</td>
         <td>-10.8%</td>
-        <td>70</td>
+        <td>48</td>
       </tr>
       <tr>
         <td>比率変動制（テクニカルのみ）</td>
-        <td class="good">+480%</td>
+        <td class="good">+580%</td>
         <td>-10.8%</td>
-        <td>70</td>
+        <td>48</td>
       </tr>
       <tr>
         <td>bb 単体</td>
         <td class="good">+42%</td>
-        <td class="bad">-32.2%</td>
+        <td class="bad">-32.3%</td>
         <td>12</td>
       </tr>
       <tr>
         <td>ema_don 単体</td>
         <td class="good">+159%</td>
-        <td class="bad">-32.2%</td>
+        <td class="bad">-32.7%</td>
         <td>13</td>
       </tr>
       <tr>
         <td>bb_ls 単体</td>
-        <td class="bad">-6%</td>
-        <td class="bad">-58.0%</td>
-        <td>45</td>
+        <td class="bad">-163%</td>
+        <td class="bad">-178.3%</td>
+        <td>23</td>
       </tr>
     </table>
     <p style="color: var(--muted); font-size: 11px; margin-top: 4px;">
       MDD = Maximum Drawdown（最大ドローダウン）。ピークからの最大下落率。-10.8%なら最も凹んだ時でも資産の約9割を維持。<br>
-      単体で使うとMDD -30〜58%だが、比率変動制で組み合わせると-10.8%に抑制される。Trades = 全戦略の合計売買回数（bb 12 + ema_don 13 + bb_ls 45）。
+      単体で使うとMDD -32〜178%だが、比率変動制で組み合わせると-10.8%に抑制される。ファンダ補正で+50pt改善（580%→630%）。
     </p>
 
     <h4 style="font-size: 14px; color: var(--muted); margin: 24px 0 12px;">年別パフォーマンス</h4>
@@ -520,37 +521,38 @@
         <th style="text-align:left">Year</th>
         <th style="text-align:left">相場</th>
         <th>BTC</th>
-        <th>比率変動制</th>
+        <th>DART</th>
       </tr>
       <tr>
         <td>2023</td>
-        <td style="text-align:left; font-size:11px; color:var(--muted)">底打ち→回復 ($25k→$42k)</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">底打ち→回復 ($30k→$44k→$42k)</td>
         <td class="good">+41.6%</td>
-        <td class="good">+25.3%</td>
+        <td class="good">+27.2%</td>
       </tr>
       <tr class="best">
         <td>2024</td>
-        <td style="text-align:left; font-size:11px; color:var(--muted)">大上昇 ($44k→$106k→$93k)</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">大上昇 ($44k→$106k→$94k)</td>
         <td class="good">+111.8%</td>
-        <td class="good" style="font-weight:700">+157.1%</td>
+        <td class="good" style="font-weight:700">+193.5%</td>
       </tr>
       <tr>
         <td>2025</td>
-        <td style="text-align:left; font-size:11px; color:var(--muted)">高値圏→下落 ($94k→$124k→$87k)</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">高値圏→調整 ($95k→$125k→$88k)</td>
         <td class="bad">-7.3%</td>
-        <td class="good" style="font-weight:700">+42.3%</td>
+        <td class="good" style="font-weight:700">+67.8%</td>
       </tr>
       <tr>
         <td>2026</td>
-        <td style="text-align:left; font-size:11px; color:var(--muted)">暴落継続 ($88k→$62k→$71k)</td>
+        <td style="text-align:left; font-size:11px; color:var(--muted)">下落継続 ($89k→$97k→$72k)</td>
         <td class="bad">-19.4%</td>
-        <td class="bad">-6.8%</td>
+        <td class="good">+11.6%</td>
       </tr>
     </table>
     <p style="color: var(--muted); font-size: 11px; margin-top: 4px;">
-      2024年: BTCを上回るリターン。上昇トレンドでema_donが利益を最大化。<br>
-      2025年: BTC下落の中+42%。downtrend全退避で損失を回避しつつ、レンジでbbが稼いだ。<br>
-      2026年: 唯一のマイナス年だが、BTCの-19%に対して-6.8%に抑制。
+      2023年: 7月以降のデータ(167日)。BTC上昇に追従。<br>
+      2024年: BTCの+112%を大幅に上回る+194%。上昇トレンドでema_donが利益を最大化。<br>
+      2025年: BTC下落の中+68%。downtrend全退避で損失を回避しつつ、レンジでbbが稼いだ。<br>
+      2026年: BTC -19%に対して+12%。全退避が機能し、プラスを維持。
     </p>
 
     <h4 style="font-size: 14px; color: var(--muted); margin: 24px 0 12px;">シナリオテスト (6シナリオ、確率加重)</h4>
@@ -560,22 +562,100 @@
         <th>Prob</th>
         <th>Return</th>
       </tr>
-      <tr><td>Bear &rarr; Recovery</td><td>15%</td><td class="good">+187%</td></tr>
-      <tr><td>Range (&plusmn;20%)</td><td>25%</td><td class="good">+191%</td></tr>
-      <tr><td>Crash &rarr; V-Recovery</td><td>10%</td><td class="good">+352%</td></tr>
-      <tr><td>Slow Bleed (-40%)</td><td>20%</td><td class="good">+144%</td></tr>
-      <tr><td>Bubble Burst (3x &rarr; -70%)</td><td>15%</td><td class="good">+179%</td></tr>
-      <tr><td>Sideways &rarr; Breakout</td><td>15%</td><td class="good">+93%</td></tr>
+      <tr><td>Bear &rarr; Recovery</td><td>15%</td><td class="good">+167%</td></tr>
+      <tr><td>Range (&plusmn;20%)</td><td>25%</td><td class="good">+168%</td></tr>
+      <tr><td>Crash &rarr; V-Recovery</td><td>10%</td><td class="good">+423%</td></tr>
+      <tr><td>Slow Bleed (-40%)</td><td>20%</td><td class="good">+158%</td></tr>
+      <tr><td>Bubble Burst (3x &rarr; -70%)</td><td>15%</td><td class="good">+162%</td></tr>
+      <tr><td>Sideways &rarr; Breakout</td><td>15%</td><td class="good">+84%</td></tr>
       <tr class="best">
         <td style="font-weight:700">Expected Return</td>
         <td></td>
-        <td class="good" style="font-weight:700">+181%</td>
+        <td class="good" style="font-weight:700">+178%</td>
       </tr>
     </table>
 
     <div class="callout">
       <div class="callout-title">全シナリオでプラス</div>
-      最悪ケース(ヨコヨコ&rarr;急騰)でも+93%。単体戦略はいずれかのシナリオでマイナスになるが、比率変動制は全シナリオで利益を確保。
+      最悪ケース(ヨコヨコ&rarr;急騰)でも+84%。単体戦略はいずれかのシナリオでマイナスになるが、比率変動制は全シナリオで利益を確保。
+    </div>
+
+    <h4 style="font-size: 14px; color: var(--muted); margin: 24px 0 12px;">ウォークフォワード検証 (2018〜2026, 未知データでの評価)</h4>
+    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">
+      過去に作った戦略を「まだ見ていないデータ」で試す検証。8年分のBTCデータを500日学習/250日テストで10分割し、テスト区間のみで評価。オーバーフィット（過去への過剰適合）でないことを確認する。
+    </p>
+    <table class="bt-table">
+      <tr>
+        <th style="text-align:left">期間</th>
+        <th>相場</th>
+        <th>DART</th>
+        <th>BTC B&H</th>
+        <th>MDD</th>
+      </tr>
+      <tr>
+        <td>2018/12〜2019/09</td><td style="color:var(--green)">UP</td>
+        <td class="good">+164%</td><td>+178%</td><td>-15.5%</td>
+      </tr>
+      <tr>
+        <td>2019/09〜2020/05</td><td style="color:var(--red)">DOWN</td>
+        <td class="good">+39%</td><td class="bad">-14%</td><td>-10.1%</td>
+      </tr>
+      <tr>
+        <td>2020/05〜2021/01</td><td style="color:var(--green)">UP</td>
+        <td class="good">+194%</td><td>+285%</td><td>-11.5%</td>
+      </tr>
+      <tr>
+        <td>2021/01〜2021/09</td><td style="color:var(--green)">UP</td>
+        <td class="good">+102%</td><td>+17%</td><td>-15.3%</td>
+      </tr>
+      <tr>
+        <td>2021/09〜2022/06</td><td style="color:var(--red)">DOWN</td>
+        <td class="good">+33%</td><td class="bad">-30%</td><td>-8.1%</td>
+      </tr>
+      <tr>
+        <td>2022/06〜2023/02</td><td style="color:var(--red)">DOWN</td>
+        <td class="good">+36%</td><td class="bad">-25%</td><td>-3.8%</td>
+      </tr>
+      <tr>
+        <td>2023/02〜2023/10</td><td style="color:var(--green)">UP</td>
+        <td class="good">+45%</td><td>+16%</td><td>-6.8%</td>
+      </tr>
+      <tr>
+        <td>2023/10〜2024/06</td><td style="color:var(--green)">UP</td>
+        <td class="good">+132%</td><td>+139%</td><td>-10.8%</td>
+      </tr>
+      <tr>
+        <td>2024/06〜2025/02</td><td style="color:var(--green)">UP</td>
+        <td class="good">+113%</td><td>+38%</td><td>-7.5%</td>
+      </tr>
+      <tr>
+        <td>2025/02〜2025/11</td><td style="color:var(--green)">UP</td>
+        <td class="good">+42%</td><td>+31%</td><td>-7.1%</td>
+      </tr>
+    </table>
+
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0;">
+      <div class="stat">
+        <div class="num" style="color:var(--green); font-size:22px;">10/10</div>
+        <div class="lbl">全ウィンドウ黒字</div>
+      </div>
+      <div class="stat">
+        <div class="num" style="color:var(--green); font-size:22px;">7/10</div>
+        <div class="lbl">B&Hに勝利</div>
+      </div>
+      <div class="stat">
+        <div class="num" style="color:var(--green); font-size:22px;">3/3</div>
+        <div class="lbl">下落相場で全勝</div>
+      </div>
+      <div class="stat">
+        <div class="num" style="color:var(--cyan); font-size:22px;">+32.5%</div>
+        <div class="lbl">最悪ウィンドウ</div>
+      </div>
+    </div>
+
+    <div class="callout" style="border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.06);">
+      <div class="callout-title" style="color: var(--green);">下落相場で真価を発揮</div>
+      BTCが-14%〜-30%の下落局面3回で、戦略は+33%〜+39%のプラスを記録。Downtrend全退避が完全に機能。上昇相場では全力B&Hに負けることもあるが、「どんな相場でも損しない」安定性は単純なBuy&Holdにない強み。
     </div>
   </div>
 
@@ -634,7 +714,7 @@
 
   <!-- Footer -->
   <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:48px; padding-top:16px; border-top:1px solid var(--border);">
-    BTC Adaptive Trading System &mdash; Backtest period: 2020-10 ~ 2026-04 &mdash; Past performance does not guarantee future results
+    DART (Dynamic Adaptive Regime Trading) &mdash; Backtest period: 2023-07 ~ 2026-04 &mdash; Past performance does not guarantee future results
   </div>
 
 </div>

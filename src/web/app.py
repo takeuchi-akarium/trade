@@ -312,8 +312,8 @@ def apiTraderFunda():
     )
     from signals.scorer import calcFundaScore
 
-    goldHist = get_gold_history(days=60)
-    tnxHist = get_tnx_history(days=30)
+    goldHist = get_gold_history(days=80)
+    tnxHist = get_tnx_history(days=35)
     fngHist = get_fng_history(days=40)
     fundaScore = calcFundaScore(goldHist, tnxHist, fngHist)
 

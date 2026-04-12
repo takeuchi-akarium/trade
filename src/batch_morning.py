@@ -108,8 +108,8 @@ def buildFundaSection():
     )
     from signals.scorer import calcFundaScore
 
-    goldHist = get_gold_history(days=60)
-    tnxHist = get_tnx_history(days=30)
+    goldHist = get_gold_history(days=80)
+    tnxHist = get_tnx_history(days=35)
     fngHist = get_fng_history(days=40)
     score = calcFundaScore(goldHist, tnxHist, fngHist)
 
@@ -117,10 +117,10 @@ def buildFundaSection():
       label = "強気 (Boost対象)"
     elif score > 0.3:
       label = "やや強気"
-    elif score < -0.3:
-      label = "やや弱気 (Early Transition対象)"
     elif score < -0.5:
       label = "弱気 (Early Transition対象)"
+    elif score < -0.3:
+      label = "やや弱気 (Early Transition対象)"
     else:
       label = "中立"
 

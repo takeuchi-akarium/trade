@@ -450,8 +450,8 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
           get_gold_history, get_tnx_history, get_fng_history,
         )
         from signals.scorer import calcFundaScore
-        goldHist = get_gold_history(days=fundaCfg.get("gold_days", 60))
-        tnxHist = get_tnx_history(days=fundaCfg.get("tnx_days", 30))
+        goldHist = get_gold_history(days=fundaCfg.get("gold_days", 80))
+        tnxHist = get_tnx_history(days=fundaCfg.get("tnx_days", 35))
         fngHist = get_fng_history(days=fundaCfg.get("fng_days", 40))
         fundaScore = calcFundaScore(goldHist, tnxHist, fngHist)
         origRegime = regime
