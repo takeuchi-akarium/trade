@@ -310,10 +310,10 @@ def runAllScenarios(strategyNames: list[str], sl: float = None):
 # ---------------------------------------------------------------------------
 
 REGIME_WEIGHTS = {
-  # (bb_weight, bb_ls_weight)
-  "uptrend":   (1.00, 0.00),  # bb全力
-  "range":     (0.70, 0.30),  # bb主体、bb_lsは補助
-  "downtrend": (0.00, 0.00),  # 全退避
+  # (bb_weight, ema_don_weight, bb_ls_weight)
+  "uptrend":   (0.30, 0.70, 0.00),  # ema_don主役、bbは押し目
+  "range":     (0.70, 0.10, 0.20),  # bb主体、ema_don少量
+  "downtrend": (0.00, 0.00, 0.00),  # 全退避
 }
 
 
@@ -342,11 +342,13 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
   scenario = SCENARIOS[scenarioKey]
   data = scenario["fn"]()
 
-  # 両戦略のシグナルを生成
+  # 3戦略のシグナルを生成
   bbStrategy = getStrategy("bb")
+  emaStrategy = getStrategy("ema_don")
   bbLsStrategy = getStrategy("bb_ls")
 
   dfBb = bbStrategy.generateSignals(data.copy())
+  dfEma = emaStrategy.generateSignals(data.copy(), short=10, long=50)
   dfBbLs = bbLsStrategy.generateSignals(data.copy())
 
   # トレンド判定用
@@ -356,9 +358,11 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
   from strategies.scalping.backtest import runBacktest, runBacktestLongShort
 
   _, eqBb = runBacktest(dfBb, initialCapital, feePct / 100)
+  _, eqEma = runBacktest(dfEma, initialCapital, feePct / 100)
   _, eqBbLs = runBacktestLongShort(dfBbLs, initialCapital, feePct / 100, stopLossPct=5.0)
 
   retBb = eqBb.pct_change().fillna(0)
+  retEma = eqEma.pct_change().fillna(0)
   retBbLs = eqBbLs.pct_change().fillna(0)
 
   # 比率変動制でequityを構築
@@ -372,7 +376,7 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
     ma = trendMa.iloc[i]
 
     regime = detectRegime(close, ma)
-    wBb, wBbLs = REGIME_WEIGHTS[regime]
+    wBb, wEma, wBbLs = REGIME_WEIGHTS[regime]
 
     # レジーム切替時のリバランスコスト（片道手数料 x 2戦略分）
     if prevRegime is not None and regime != prevRegime:
@@ -380,8 +384,9 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
       equity -= rebalanceCost
 
     rBb = retBb.iloc[i] if i < len(retBb) else 0
+    rEma = retEma.iloc[i] if i < len(retEma) else 0
     rBbLs = retBbLs.iloc[i] if i < len(retBbLs) else 0
-    portfolioReturn = wBb * rBb + wBbLs * rBbLs
+    portfolioReturn = wBb * rBb + wEma * rEma + wBbLs * rBbLs
 
     equity *= (1 + portfolioReturn)
     equityList.append(equity)
@@ -429,6 +434,7 @@ def runDynamicComparison():
 
     # 個別戦略
     rBb = runScenario("bb", sKey)
+    rEma = runScenario("ema", sKey)
     rBbLs = runScenario("bb_ls", sKey)
 
     regimeStr = " / ".join(f"{k}:{v}" for k, v in dynResult["regimeCounts"].items())
@@ -438,6 +444,7 @@ def runDynamicComparison():
     print(f"  {'-' * 50}")
     print(f"  {'比率変動制':<20s} {dynResult['totalReturn']:>+9.2f}% {dynResult['finalValue']:>10,.0f} {dynResult['mdd']:>+9.2f}%")
     print(f"  {'bb単体':<20s} {rBb['metrics']['totalReturn']:>+9.2f}% {rBb['metrics']['finalValue']:>10,.0f} {rBb['metrics']['mdd']:>+9.2f}%")
+    print(f"  {'ema単体':<20s} {rEma['metrics']['totalReturn']:>+9.2f}% {rEma['metrics']['finalValue']:>10,.0f} {rEma['metrics']['mdd']:>+9.2f}%")
     print(f"  {'bb_ls単体':<20s} {rBbLs['metrics']['totalReturn']:>+9.2f}% {rBbLs['metrics']['finalValue']:>10,.0f} {rBbLs['metrics']['mdd']:>+9.2f}%")
 
     allResults.append({
@@ -446,6 +453,7 @@ def runDynamicComparison():
       "probability": prob,
       "dynamic": dynResult,
       "bb": rBb["metrics"]["totalReturn"],
+      "ema": rEma["metrics"]["totalReturn"],
       "bbLs": rBbLs["metrics"]["totalReturn"],
     })
 
@@ -456,16 +464,19 @@ def runDynamicComparison():
 
   dynExpected = sum(r["dynamic"]["totalReturn"] * r["probability"] for r in allResults)
   bbExpected = sum(r["bb"] * r["probability"] for r in allResults)
+  emaExpected = sum(r["ema"] * r["probability"] for r in allResults)
   bbLsExpected = sum(r["bbLs"] * r["probability"] for r in allResults)
 
   dynWorst = min(r["dynamic"]["totalReturn"] for r in allResults)
   bbWorst = min(r["bb"] for r in allResults)
+  emaWorst = min(r["ema"] for r in allResults)
   bbLsWorst = min(r["bbLs"] for r in allResults)
 
   print(f"  {'配分方式':<20s} {'期待リターン':>12s} {'最悪ケース':>12s}")
   print(f"  {'-' * 44}")
   print(f"  {'比率変動制':<20s} {dynExpected:>+11.2f}% {dynWorst:>+11.2f}%")
   print(f"  {'bb単体':<20s} {bbExpected:>+11.2f}% {bbWorst:>+11.2f}%")
+  print(f"  {'ema単体':<20s} {emaExpected:>+11.2f}% {emaWorst:>+11.2f}%")
   print(f"  {'bb_ls単体':<20s} {bbLsExpected:>+11.2f}% {bbLsWorst:>+11.2f}%")
 
 

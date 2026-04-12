@@ -21,10 +21,16 @@ JST = timezone(timedelta(hours=9))
 
 # レジーム別weight%（config.yamlで上書き可能）
 DEFAULT_REGIME_WEIGHTS = {
-  "uptrend":   {"bb": 100, "bb_ls": 0},    # bb全力
-  "range":     {"bb": 70,  "bb_ls": 30},   # bb主体、bb_lsは補助
-  "downtrend": {"bb": 0,   "bb_ls": 0},    # 全退避（デフォルト）
+  "uptrend":   {"bb": 30, "ema_don": 70, "bb_ls": 0},   # ema+don主役、bbは押し目
+  "range":     {"bb": 70, "ema_don": 10, "bb_ls": 20},   # bb主体、ema_don少量
+  "downtrend": {"bb": 0,  "ema_don": 0,  "bb_ls": 0},    # 全退避（デフォルト）
   # bb_lsを下げ基調で使うには config.yaml で downtrend の bb_ls を設定
+}
+
+# ファンダ補正時のweight
+FUNDA_BOOST_WEIGHTS = {
+  "uptrend_boost": {"bb": 10, "ema_don": 90, "bb_ls": 0},  # 両方強気→ema_don全力
+  "range_boost":   {"bb": 60, "ema_don": 20, "bb_ls": 20},  # レンジ+ファンダ強気→ema_don増量
 }
 
 
@@ -37,6 +43,44 @@ def detectRegime(price: float, trendMa: float, threshold: float = 2.0) -> str:
   elif price < trendMa * (1 - threshold / 100):
     return "downtrend"
   return "range"
+
+
+def adjustRegimeByFunda(regime: str, sma50Dev: float, fundaScore: float,
+                        upZone: float = 5.0, downZone: float = -10.0,
+                        fundaThr: float = 0.3, boostThr: float = 0.5) -> tuple[str, dict | None]:
+  """
+  ファンダスコアでレジーム判定を補正する。
+
+  Early Transition:
+    上昇圏(0~upZone%) + ファンダ弱気 → rangeに早期退避
+    下落圏(0~downZone%) + ファンダ強気 → rangeに留まる（全退避しない）
+
+  Boost:
+    uptrend + ファンダ強気(>boostThr) → ema90%にブースト
+    range + ファンダ強気(>boostThr) → ema20%に増量
+
+  戻り値: (補正後regime, weight上書きdict or None)
+  """
+  if fundaScore is None:
+    return regime, None
+
+  # Early Transition: 上昇圏でファンダ弱気 → range退避
+  if sma50Dev is not None and sma50Dev > 0 and sma50Dev < upZone and fundaScore < -fundaThr:
+    return "range", None
+
+  # Early Transition: 下落圏でファンダ強気 → range留まり
+  if sma50Dev is not None and sma50Dev < 0 and sma50Dev > downZone and fundaScore > fundaThr:
+    return "range", None
+
+  # Boost: uptrend + ファンダ強気
+  if regime == "uptrend" and fundaScore > boostThr:
+    return "uptrend", FUNDA_BOOST_WEIGHTS["uptrend_boost"]
+
+  # Boost: range + ファンダ強気
+  if regime == "range" and fundaScore > boostThr:
+    return "range", FUNDA_BOOST_WEIGHTS["range_boost"]
+
+  return regime, None
 
 
 def _getRegimeWeight(strategyName: str, regime: str, regimeWeights: dict) -> float:
@@ -373,6 +417,7 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
   if dynamicCfg.get("enabled", False):
     trendMaPeriod = dynamicCfg.get("trend_ma_period", 50)
     threshold = dynamicCfg.get("threshold", 2.0)
+    sma50Dev = None
     try:
       import strategies
       from strategies.registry import getStrategy
@@ -381,10 +426,43 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
       if len(data) >= trendMaPeriod:
         trendMa = data["close"].rolling(trendMaPeriod).mean().iloc[-1]
         regime = detectRegime(price, trendMa, threshold)
+        sma50Dev = (price - trendMa) / trendMa * 100 if trendMa else None
     except Exception as e:
       print(f"  [regime] 判定失敗、rangeで続行: {e}")
 
     regimeWeights = dynamicCfg.get("regime_weights", DEFAULT_REGIME_WEIGHTS)
+
+    # ファンダスコアによる補正 (Early Transition + Boost)
+    fundaScore = None
+    fundaWeightOverride = None
+    fundaCfg = dynamicCfg.get("funda", {})
+    if fundaCfg.get("enabled", False):
+      try:
+        from signals.collectors.macro_collector import (
+          get_gold_history, get_tnx_history, get_fng_history,
+        )
+        from signals.scorer import calcFundaScore
+        goldHist = get_gold_history(days=fundaCfg.get("gold_days", 60))
+        tnxHist = get_tnx_history(days=fundaCfg.get("tnx_days", 30))
+        fngHist = get_fng_history(days=fundaCfg.get("fng_days", 40))
+        fundaScore = calcFundaScore(goldHist, tnxHist, fngHist)
+        origRegime = regime
+        regime, fundaWeightOverride = adjustRegimeByFunda(
+          regime, sma50Dev, fundaScore,
+          upZone=fundaCfg.get("up_zone", 5.0),
+          downZone=fundaCfg.get("down_zone", -10.0),
+          fundaThr=fundaCfg.get("threshold", 0.3),
+          boostThr=fundaCfg.get("boost_threshold", 0.5),
+        )
+        adjStr = ""
+        if regime != origRegime:
+          adjStr = f" (funda: {origRegime}->{regime})"
+        elif fundaWeightOverride:
+          adjStr = " (funda: BOOST)"
+        print(f"  funda_score: {fundaScore:+.2f}{adjStr}")
+      except Exception as e:
+        print(f"  [funda] 取得失敗、テクニカルのみで続行: {e}")
+
     print(f"  regime: {regime}  dynamic_weight: ON")
   else:
     regimeWeights = None
@@ -393,9 +471,12 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
   # 各戦略を実行
   results = []
   for sCfg in strategiesCfg:
-    # 動的weight適用
+    # 動的weight適用（ファンダブースト時はそちらを優先）
     if regimeWeights:
-      sCfg = {**sCfg, "weight": _getRegimeWeight(sCfg["name"], regime, regimeWeights)}
+      if fundaWeightOverride:
+        sCfg = {**sCfg, "weight": fundaWeightOverride.get(sCfg["name"], 0)}
+      else:
+        sCfg = {**sCfg, "weight": _getRegimeWeight(sCfg["name"], regime, regimeWeights)}
     elif "weight" not in sCfg:
       sCfg = {**sCfg, "weight": 50}  # OFFの時のフォールバック
     try:

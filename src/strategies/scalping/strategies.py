@@ -150,6 +150,43 @@ def calcEma(df: pd.DataFrame,
 
 
 # ---------------------------------------------------------------------------
+# EMA + ドンチャン補完
+# ---------------------------------------------------------------------------
+
+def calcEmaDon(df: pd.DataFrame,
+               short: int = 10,
+               long: int = 50,
+               entryPeriod: int = 20,
+               exitPeriod: int = 10,
+               volFilter: float = 1.2) -> pd.DataFrame:
+  """
+  EMAクロスをメインに、EMAがポジション不在時のみドンチャンで補完。
+  売りはEMAのデッドクロスに従う。
+  """
+  dfE = calcEma(df, short=short, long=long)
+  dfD = calcDonchian(df, entryPeriod=entryPeriod, exitPeriod=exitPeriod, volFilter=volFilter)
+
+  # EMAのポジション状態を追跡（.valuesで高速化）
+  sigVals = dfE["signal"].values
+  posArr = np.zeros(len(sigVals), dtype=int)
+  pos = 0
+  for i in range(len(sigVals)):
+    if sigVals[i] == 1:
+      pos = 1
+    elif sigVals[i] == -1:
+      pos = 0
+    posArr[i] = pos
+  emaPos = pd.Series(posArr, index=df.index)
+
+  # EMAシグナルをベースに、EMA不在時のドンチャン買いで補完
+  result = dfE.copy()
+  donBuy = dfD["signal"] == 1
+  result.loc[donBuy & (emaPos == 0), "signal"] = 1
+
+  return result
+
+
+# ---------------------------------------------------------------------------
 # VWAP 乖離
 # ---------------------------------------------------------------------------
 
@@ -178,6 +215,49 @@ def calcVwap(df: pd.DataFrame,
 
 
 # ---------------------------------------------------------------------------
+# ドンチャンチャネル ブレイクアウト
+# ---------------------------------------------------------------------------
+
+def calcDonchian(df: pd.DataFrame,
+                 entryPeriod: int = 20,
+                 exitPeriod: int = 10,
+                 volFilter: float = 1.2) -> pd.DataFrame:
+  """
+  ドンチャンチャネル ブレイクアウト（Turtle Trading スタイル）
+
+  買い: 終値が直近entryPeriod日の高値を上抜け（+ 出来高フィルター）
+  売り: 終値が直近exitPeriod日の安値を下抜け
+  volFilter: ブレイクアウト日の出来高が直近平均のN倍以上で確認（0=無効）
+  """
+  df = df.copy()
+
+  # チャネル計算（前日までのデータで判定 → shift(1)）
+  df["dc_upper"] = df["high"].rolling(entryPeriod).max().shift(1)
+  df["dc_lower"] = df["low"].rolling(exitPeriod).min().shift(1)
+
+  df["signal"] = 0
+
+  # 買い: 終値がエントリーチャネル上限を上抜け
+  breakout = df["close"] > df["dc_upper"]
+
+  # 出来高フィルター（出来高データがあり、volFilter > 0 の場合のみ）
+  if volFilter > 0 and "volume" in df.columns and df["volume"].sum() > 0:
+    avgVol = df["volume"].rolling(entryPeriod).mean().shift(1)
+    volOk = df["volume"] > avgVol * volFilter
+    breakout = breakout & volOk
+
+  df.loc[breakout, "signal"] = 1
+
+  # 売り: 終値がエグジットチャネル下限を下抜け
+  df.loc[df["close"] < df["dc_lower"], "signal"] = -1
+
+  # ウォームアップ期間はシグナルを出さない
+  df.loc[df["dc_upper"].isna(), "signal"] = 0
+
+  return df
+
+
+# ---------------------------------------------------------------------------
 # 戦略レジストリ
 # ---------------------------------------------------------------------------
 
@@ -187,6 +267,8 @@ STRATEGIES = {
   "bb_trend": {"fn": calcBbTrend, "name": "BB+トレンドフィルター", "defaults": {"period": 20, "std": 2.0, "trendMaPeriod": 200, "rsiPeriod": 14, "rsiOversold": 40, "rsiOverbought": 60, "lookback": 5}},
   "ema": {"fn": calcEma, "name": "EMAクロス", "defaults": {"short": 5, "long": 20}},
   "vwap": {"fn": calcVwap, "name": "VWAP乖離", "defaults": {"threshold": 1.0}},
+  "donchian": {"fn": calcDonchian, "name": "ドンチャンブレイクアウト", "defaults": {"entryPeriod": 20, "exitPeriod": 10, "volFilter": 1.2}},
+  "ema_don": {"fn": calcEmaDon, "name": "EMA+ドンチャン補完", "defaults": {"short": 10, "long": 50, "entryPeriod": 20, "exitPeriod": 10, "volFilter": 1.2}},
 }
 
 

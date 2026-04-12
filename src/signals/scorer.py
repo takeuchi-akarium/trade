@@ -37,6 +37,76 @@ def score_vix(vix: float | None) -> int:
         return -100  # パニック水準
 
 
+def calcFundaScore(goldHistory: list[float], tnxHistory: list[float],
+                    fngHistory: list[int], window: int = 90) -> float:
+    """
+    BTC トレンド予測ファンダスコアを算出
+
+    3指標のZ-scoreを相関強度ウェイトで合算:
+      - ゴールド50日モメンタム(反転): 相関-0.31 → weight 0.41
+      - 10年債20日変化:              相関+0.28 → weight 0.37
+      - FnG変化速度(7d-30d):         相関+0.17 → weight 0.22
+
+    戻り値: おおよそ -2 ~ +2 の連続値。0=中立、+方向=BTC強気
+    """
+    import numpy as np
+
+    def _zscore(values, w):
+        if len(values) < w + 1:
+            return 0.0
+        arr = np.array(values, dtype=float)
+        mean = np.mean(arr[-w:])
+        std = np.std(arr[-w:])
+        if std == 0:
+            return 0.0
+        return (arr[-1] - mean) / std
+
+    # ゴールド50日モメンタム（反転）
+    goldZ = 0.0
+    if len(goldHistory) >= 51:
+        mom50 = (goldHistory[-1] / goldHistory[-51] - 1) * 100
+        # 直近windowのモメンタム系列からZ-score
+        moms = []
+        for i in range(50, len(goldHistory)):
+            moms.append((goldHistory[i] / goldHistory[i - 50] - 1) * 100)
+        if len(moms) >= 2:
+            m = np.mean(moms[-min(window, len(moms)):])
+            s = np.std(moms[-min(window, len(moms)):])
+            goldZ = -(mom50 - m) / s if s > 0 else 0.0  # 反転
+
+    # 10年債20日変化
+    tnxZ = 0.0
+    if len(tnxHistory) >= 21:
+        chg20 = tnxHistory[-1] - tnxHistory[-21]
+        chgs = []
+        for i in range(20, len(tnxHistory)):
+            chgs.append(tnxHistory[i] - tnxHistory[i - 20])
+        if len(chgs) >= 2:
+            m = np.mean(chgs[-min(window, len(chgs)):])
+            s = np.std(chgs[-min(window, len(chgs)):])
+            tnxZ = (chg20 - m) / s if s > 0 else 0.0
+
+    # FnG変化速度 (7日平均 - 30日平均)
+    fngZ = 0.0
+    if len(fngHistory) >= 30:
+        fng = np.array(fngHistory, dtype=float)
+        sma7 = np.mean(fng[-7:])
+        sma30 = np.mean(fng[-30:])
+        revert = sma7 - sma30
+        # 直近windowの系列からZ-score
+        reverts = []
+        for i in range(29, len(fng)):
+            s7 = np.mean(fng[max(0, i - 6):i + 1])
+            s30 = np.mean(fng[max(0, i - 29):i + 1])
+            reverts.append(s7 - s30)
+        if len(reverts) >= 2:
+            m = np.mean(reverts[-min(window, len(reverts)):])
+            s = np.std(reverts[-min(window, len(reverts)):])
+            fngZ = (revert - m) / s if s > 0 else 0.0
+
+    return 0.41 * goldZ + 0.37 * tnxZ + 0.22 * fngZ
+
+
 def aggregate(scores: dict, weights: dict | None = None) -> int:
     """
     スコアを重み付き平均で統合

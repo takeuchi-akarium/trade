@@ -95,6 +95,48 @@ def buildMacroSection(config):
     return f"  取得失敗: {e}"
 
 
+# ── ファンダスコア セクション ────────────────────────
+
+def buildFundaSection():
+  """BTCトレンド予測ファンダスコアを算出してレポート文字列を返す"""
+  try:
+    from signals.collectors.macro_collector import (
+      get_gold_history, get_tnx_history, get_fng_history,
+    )
+    from signals.scorer import calcFundaScore
+
+    goldHist = get_gold_history(days=60)
+    tnxHist = get_tnx_history(days=30)
+    fngHist = get_fng_history(days=40)
+    score = calcFundaScore(goldHist, tnxHist, fngHist)
+
+    if score > 0.5:
+      label = "強気 (Boost対象)"
+    elif score > 0.3:
+      label = "やや強気"
+    elif score < -0.3:
+      label = "やや弱気 (Early Transition対象)"
+    elif score < -0.5:
+      label = "弱気 (Early Transition対象)"
+    else:
+      label = "中立"
+
+    lines = [f"  スコア: {score:+.2f} → {label}"]
+
+    if goldHist:
+      goldMom = (goldHist[-1] / goldHist[0] - 1) * 100 if goldHist[0] > 0 else 0
+      lines.append(f"  Gold: ${goldHist[-1]:,.0f} ({len(goldHist)}d mom: {goldMom:+.1f}%)")
+    if tnxHist:
+      tnxChg = tnxHist[-1] - tnxHist[0] if len(tnxHist) > 1 else 0
+      lines.append(f"  10Y: {tnxHist[-1]:.2f}% ({len(tnxHist)}d chg: {tnxChg:+.2f})")
+    if fngHist:
+      lines.append(f"  FnG: {fngHist[-1]} (7d avg: {sum(fngHist[-7:])/min(7,len(fngHist)):.0f})")
+
+    return "\n".join(lines)
+  except Exception as e:
+    return f"  取得失敗: {e}"
+
+
 # ── RSS ニュース セクション ──────────────────────────
 
 def buildRssSection(config):
@@ -435,15 +477,19 @@ def main():
   log("batch_morning", "マクロ...")
   sections.append(f"■ マクロシグナル\n{buildMacroSection(config)}")
 
-  # 5. ニュース
+  # 5. ファンダスコア（BTCトレンド予測）
+  log("batch_morning", "ファンダスコア...")
+  sections.append(f"■ BTCファンダスコア\n{buildFundaSection()}")
+
+  # 6. ニュース
   log("batch_morning", "RSS...")
   sections.append(f"■ 注目ニュース\n{buildRssSection(config)}")
 
-  # 6. TDnet
+  # 7. TDnet
   log("batch_morning", "TDnet...")
   sections.append(f"■ 適時開示\n{buildTdnetSection(config)}")
 
-  # 7. 日本小型株モメンタムTOP10
+  # 8. 日本小型株モメンタムTOP10
   log("batch_morning", "JP momentum...")
   sections.append(f"■ 日本小型株 モメンタムTOP10\n{buildJpMomentumSection()}")
 

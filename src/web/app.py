@@ -297,6 +297,38 @@ def apiTrader():
   })
 
 
+@app.route("/api/trader/funda")
+def apiTraderFunda():
+  """ファンダスコアとレジーム判定の現在状態"""
+  try:
+    from signals.collectors.macro_collector import (
+      get_gold, get_tnx, get_fear_greed,
+      get_gold_history, get_tnx_history, get_fng_history,
+    )
+    from signals.scorer import calcFundaScore
+
+    goldHist = get_gold_history(days=60)
+    tnxHist = get_tnx_history(days=30)
+    fngHist = get_fng_history(days=40)
+    fundaScore = calcFundaScore(goldHist, tnxHist, fngHist)
+
+    gold = get_gold()
+    tnx = get_tnx()
+    fng = get_fear_greed()
+
+    return jsonify({
+      "fundaScore": round(fundaScore, 3),
+      "indicators": {
+        "gold": {"price": gold, "history_days": len(goldHist)},
+        "tnx": {"value": tnx, "history_days": len(tnxHist)},
+        "fng": {"value": fng["value"], "label": fng["label"], "history_days": len(fngHist)},
+      },
+      "updated_at": datetime.now().isoformat(),
+    })
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
   print("Dashboard:    http://localhost:5000")
   print("Simulations:  http://localhost:5000/simulations")
