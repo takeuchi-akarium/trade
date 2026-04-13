@@ -455,11 +455,17 @@ function dartRender(d) {
   var sd=d.sma50Dev;
   var sdEl=document.getElementById("dartSmaDev");
   sdEl.textContent=sd!==null?(sd>=0?"+":"")+sd.toFixed(1)+"%":"N/A";
-  sdEl.style.color=sd>2?"var(--green)":sd<-2?"var(--red)":"var(--yellow)";
-  // ラベルに判定ラインを表示
+  sdEl.style.color=sd>5?"#4ade80":sd>2?"var(--green)":sd>-2?"var(--yellow)":sd>-5?"var(--red)":"#f87171";
+  // ラベルに段階制レベルを表示
   var sdLbl=document.getElementById("dartSmaDevLbl");
-  if(sd!==null) {
-    var bar="<span style='color:var(--green)'>▏+2%</span> ";
+  var wm=d.weightMode||"regime";
+  if(sd!==null&&wm==="gradient") {
+    if(sd>5) sdLbl.innerHTML="SMA50 Dev — <span style='color:#4ade80'>強上昇</span>（ema_don 100%）";
+    else if(sd>2) sdLbl.innerHTML="SMA50 Dev — <span style='color:var(--green)'>上昇</span>（ema 80% + bb 20%）";
+    else if(sd>-2) sdLbl.innerHTML="SMA50 Dev — <span style='color:var(--yellow)'>レンジ</span>（3戦略分散）";
+    else if(sd>-5) sdLbl.innerHTML="SMA50 Dev — <span style='color:var(--red)'>下落</span>（bb_ls 100%）";
+    else sdLbl.innerHTML="SMA50 Dev — <span style='color:#f87171'>強下落</span>（全退避）";
+  } else if(sd!==null) {
     if(sd>2) sdLbl.innerHTML="SMA50 Dev — 上昇ゾーン（+2%超）";
     else if(sd<-2) sdLbl.innerHTML="SMA50 Dev — 下落ゾーン（-2%未満）";
     else sdLbl.innerHTML="SMA50 Dev — 横ばいゾーン（±2%以内）";

@@ -143,9 +143,11 @@
     background: rgba(255,255,255,0.03); font-weight: 700;
     font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
   }
+  .regime-table .r-sup { color: #4ade80; }
   .regime-table .r-up { color: var(--green); }
   .regime-table .r-range { color: var(--yellow); }
   .regime-table .r-down { color: var(--red); }
+  .regime-table .r-sdown { color: #f87171; }
   .regime-table .pct { font-weight: 700; font-variant-numeric: tabular-nums; }
 
   /* Funda */
@@ -226,26 +228,28 @@
   <!-- 概要説明 -->
   <div class="callout" style="margin-bottom: 32px;">
     <div class="callout-title">DARTの考え方</div>
-    相場には「上昇」「横ばい」「下落」の3つの局面がある。それぞれに得意な戦略は違う。<br><br>
-    <strong>上昇局面:</strong> トレンドに乗って持ち続ける戦略（ema_don）が主役<br>
-    <strong>横ばい局面:</strong> 安い時に買って高い時に売る逆張り戦略（bb）が主役<br>
-    <strong>下落局面:</strong> 何もしない。現金で待機<br><br>
-    この切り替えを50日移動平均線（SMA50）で自動判定し、さらにゴールド・米国債・市場心理の3つの指標で判定精度を高めている。
+    相場の「勢い」に応じて、使う戦略の数を変える。<br><br>
+    <strong>強い上昇（SMA50 +5%超）:</strong> 順張り戦略（ema_don）1本に集中<br>
+    <strong>通常の上昇（+2〜5%）:</strong> 順張り + 逆張り（bb）の2戦略<br>
+    <strong>横ばい（±2%）:</strong> 3戦略すべてで分散<br>
+    <strong>通常の下落（-2〜-5%）:</strong> 空売り戦略（bb_ls）1本<br>
+    <strong>強い下落（-5%超）:</strong> 何もしない。全額現金で待機<br><br>
+    この切り替えを50日移動平均線（SMA50）との乖離率で自動判定し、さらにゴールド・米国債・市場心理の3つの指標で判定精度を高めている。
   </div>
 
   <!-- Key Stats -->
   <div class="stats">
     <div class="stat">
-      <div class="num" style="color: var(--green)">+630%</div>
-      <div class="lbl">バックテスト収益 (2.7年)</div>
+      <div class="num" style="color: var(--green)">+356%</div>
+      <div class="lbl">期待リターン (6シナリオ)</div>
     </div>
     <div class="stat">
-      <div class="num" style="color: var(--cyan)">-10.8%</div>
-      <div class="lbl">最大ドローダウン</div>
+      <div class="num" style="color: var(--cyan)">-14.3%</div>
+      <div class="lbl">期待MDD</div>
     </div>
     <div class="stat">
-      <div class="num" style="color: var(--yellow)">3</div>
-      <div class="lbl">稼働戦略数</div>
+      <div class="num" style="color: var(--yellow)">1〜3</div>
+      <div class="lbl">稼働戦略数 (段階制)</div>
     </div>
     <div class="stat">
       <div class="num" style="color: var(--purple)">+0.143</div>
@@ -290,24 +294,32 @@
 
         <!-- Layer 2 -->
         <div class="arch-layer">
-          <div class="arch-label" style="border-color: var(--blue);">Layer 2<br>Regime</div>
+          <div class="arch-label" style="border-color: var(--blue);">Layer 2<br>Gradient</div>
           <div class="arch-items">
             <div class="arch-item green">
-              <div class="name">Uptrend</div>
-              <div class="desc">SMA50 > +2%<br>ema_don 70% + bb 30%</div>
+              <div class="name">強上昇</div>
+              <div class="desc">SMA50 > +5%<br>ema_don 100%</div>
+            </div>
+            <div class="arch-item green" style="opacity:0.8">
+              <div class="name">上昇</div>
+              <div class="desc">+2〜5%<br>ema 80% + bb 20%</div>
             </div>
             <div class="arch-item yellow">
-              <div class="name">Range</div>
-              <div class="desc">SMA50 &plusmn;2%<br>bb 70% + ema_don 10% + bb_ls 20%</div>
+              <div class="name">レンジ</div>
+              <div class="desc">&plusmn;2%<br>bb 60% + ema 10% + ls 30%</div>
+            </div>
+            <div class="arch-item red" style="opacity:0.8">
+              <div class="name">下落</div>
+              <div class="desc">-2〜-5%<br>bb_ls 100%</div>
             </div>
             <div class="arch-item red">
-              <div class="name">Downtrend</div>
-              <div class="desc">SMA50 < -2%<br>All Exit (0%)</div>
+              <div class="name">強下落</div>
+              <div class="desc">< -5%<br>全退避</div>
             </div>
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted); text-align:center; padding:2px 0;">
-          「今どんな相場か」を判定し、得意な戦略に多く資金を配分する。下落時は全額退避。
+          乖離率の強度で参加戦略数を変える。強いトレンドは1戦略に集中、レンジは3戦略で分散。
         </div>
 
         <div class="arch-arrow">&darr; Weight Allocation &darr;</div>
@@ -392,40 +404,62 @@
       Dynamic Weight Control
     </div>
     <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
-      過去50日の平均価格（SMA50）と現在価格の乖離率で「今はどんな相場か」を判定し、各戦略への資金配分を毎日自動で調整する。上昇中は順張りに多く配分し、下落中は全額退避する。
+      過去50日の平均価格（SMA50）と現在価格の乖離率の<strong>強度</strong>で、参加する戦略の数を動的に変える。強いトレンドでは1戦略に集中し、レンジでは3戦略で分散する。
     </p>
     <table class="regime-table">
       <tr>
-        <th>Regime</th>
+        <th>Level</th>
         <th>Condition</th>
         <th>bb</th>
         <th>ema_don</th>
         <th>bb_ls</th>
         <th>Cash</th>
+        <th>戦略数</th>
       </tr>
       <tr>
-        <td class="r-up" style="font-weight:700">Uptrend</td>
-        <td>close > SMA50 &times; 1.02</td>
-        <td class="pct">30%</td>
-        <td class="pct" style="color:var(--green)">70%</td>
+        <td class="r-sup" style="font-weight:700">強上昇</td>
+        <td>SMA50 > +5%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--green)">100%</td>
         <td class="pct" style="color:var(--muted)">0%</td>
         <td class="pct" style="color:var(--muted)">0%</td>
+        <td>1</td>
       </tr>
       <tr>
-        <td class="r-range" style="font-weight:700">Range</td>
-        <td>SMA50 &plusmn; 2%</td>
-        <td class="pct" style="color:var(--green)">70%</td>
-        <td class="pct">10%</td>
+        <td class="r-up" style="font-weight:700">上昇</td>
+        <td>+2% 〜 +5%</td>
         <td class="pct">20%</td>
+        <td class="pct" style="color:var(--green)">80%</td>
         <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td>2</td>
       </tr>
       <tr>
-        <td class="r-down" style="font-weight:700">Downtrend</td>
-        <td>close < SMA50 &times; 0.98</td>
+        <td class="r-range" style="font-weight:700">レンジ</td>
+        <td>&plusmn;2%</td>
+        <td class="pct" style="color:var(--green)">60%</td>
+        <td class="pct">10%</td>
+        <td class="pct">30%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td>3</td>
+      </tr>
+      <tr>
+        <td class="r-down" style="font-weight:700">下落</td>
+        <td>-5% 〜 -2%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td class="pct" style="color:var(--red)">100%</td>
+        <td class="pct" style="color:var(--muted)">0%</td>
+        <td>1</td>
+      </tr>
+      <tr>
+        <td class="r-sdown" style="font-weight:700">強下落</td>
+        <td>SMA50 < -5%</td>
         <td class="pct" style="color:var(--muted)">0%</td>
         <td class="pct" style="color:var(--muted)">0%</td>
         <td class="pct" style="color:var(--muted)">0%</td>
         <td class="pct" style="color:var(--red)">100%</td>
+        <td>0</td>
       </tr>
     </table>
 
@@ -562,22 +596,22 @@
         <th>Prob</th>
         <th>Return</th>
       </tr>
-      <tr><td>Bear &rarr; Recovery</td><td>15%</td><td class="good">+167%</td></tr>
-      <tr><td>Range (&plusmn;20%)</td><td>25%</td><td class="good">+168%</td></tr>
-      <tr><td>Crash &rarr; V-Recovery</td><td>10%</td><td class="good">+423%</td></tr>
-      <tr><td>Slow Bleed (-40%)</td><td>20%</td><td class="good">+158%</td></tr>
-      <tr><td>Bubble Burst (3x &rarr; -70%)</td><td>15%</td><td class="good">+162%</td></tr>
-      <tr><td>Sideways &rarr; Breakout</td><td>15%</td><td class="good">+84%</td></tr>
+      <tr><td>Bear &rarr; Recovery</td><td>15%</td><td class="good">+336%</td></tr>
+      <tr><td>Range (&plusmn;20%)</td><td>25%</td><td class="good">+211%</td></tr>
+      <tr><td>Crash &rarr; V-Recovery</td><td>10%</td><td class="good">+769%</td></tr>
+      <tr><td>Slow Bleed (-40%)</td><td>20%</td><td class="good">+420%</td></tr>
+      <tr><td>Bubble Burst (3x &rarr; -70%)</td><td>15%</td><td class="good">+336%</td></tr>
+      <tr><td>Sideways &rarr; Breakout</td><td>15%</td><td class="good">+273%</td></tr>
       <tr class="best">
         <td style="font-weight:700">Expected Return</td>
         <td></td>
-        <td class="good" style="font-weight:700">+178%</td>
+        <td class="good" style="font-weight:700">+356%</td>
       </tr>
     </table>
 
     <div class="callout">
       <div class="callout-title">全シナリオでプラス</div>
-      最悪ケース(ヨコヨコ&rarr;急騰)でも+84%。単体戦略はいずれかのシナリオでマイナスになるが、比率変動制は全シナリオで利益を確保。
+      最悪ケース(レンジ)でも+211%。段階制は従来の固定ミックス(期待+196%)を大きく上回る+356%。リターン/MDD効率は24.8で固定ミックスの19.2より30%改善。
     </div>
 
     <h4 style="font-size: 14px; color: var(--muted); margin: 24px 0 12px;">ウォークフォワード検証 (2018〜2026, 未知データでの評価)</h4>
@@ -681,8 +715,8 @@
       <div style="display:flex; align-items:center; gap:14px;">
         <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--blue); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--blue);">2</div>
         <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">相場判定</div>
-          <div style="font-size:12px; color:var(--muted);">SMA50との乖離率で <span style="color:var(--green)">上昇</span> / <span style="color:var(--yellow)">レンジ</span> / <span style="color:var(--red)">下落</span> を判定。ファンダスコアで境界付近の判定を微調整。</div>
+          <div style="font-weight:700; font-size:14px; margin-bottom:2px;">相場判定 (段階制)</div>
+          <div style="font-size:12px; color:var(--muted);">SMA50との乖離率の強度で5段階に分類: <span style="color:var(--green)">強上昇(&gt;+5%)</span> / <span style="color:var(--green)">上昇(+2〜5%)</span> / <span style="color:var(--yellow)">レンジ(±2%)</span> / <span style="color:var(--red)">下落(-2〜-5%)</span> / <span style="color:var(--red)">強下落(&lt;-5%)</span>。ファンダスコアで微調整。</div>
         </div>
       </div>
       <!-- Step 3 -->
@@ -690,7 +724,7 @@
         <div style="min-width:36px; height:36px; border-radius:50%; background:var(--card); border:2px solid var(--yellow); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--yellow);">3</div>
         <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px 16px;">
           <div style="font-weight:700; font-size:14px; margin-bottom:2px;">資金配分</div>
-          <div style="font-size:12px; color:var(--muted);">レジームに応じて3戦略に資金を振り分ける。下落判定なら全額を現金退避。</div>
+          <div style="font-size:12px; color:var(--muted);">乖離率の強度に応じて参加戦略数を決定(1〜3)。強トレンドは1戦略集中、レンジは3戦略分散、強下落は全退避。</div>
         </div>
       </div>
       <!-- Step 4 -->
