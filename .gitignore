@@ -25,6 +25,10 @@ data/signals/*
 data/leadlag/*
 !data/leadlag/position_history.json
 !data/paper_state.json
+!data/jp_stock/
+data/jp_stock/*
+!data/jp_stock/prev_top10.json
+data/screenshots/
 
 # 環境変数
 .env
