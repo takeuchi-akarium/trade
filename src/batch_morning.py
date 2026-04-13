@@ -308,6 +308,19 @@ def buildLeadlagSection(config):
     return f"[leadlag] エラー: {e}"
 
 
+# ── ギャップスキャン セクション ──────────────────────────
+
+def buildGapScanSection():
+  """日本株ギャップスキャン候補をレポート文字列で返す"""
+  try:
+    from strategies.jp_stock.gap_scanner import generateMorningReport, formatReport
+    gapReport = generateMorningReport()
+    return formatReport(gapReport)
+  except Exception as e:
+    log("batch_morning", f"buildGapScanSection error: {traceback.format_exc()}")
+    return f"  取得失敗: {e}"
+
+
 # ── 日本小型株モメンタム セクション ─────────────────────
 
 def buildJpMomentumSection():
@@ -500,6 +513,10 @@ def main():
   # 8. 日本小型株モメンタムTOP10
   log("batch_morning", "JP momentum...")
   sections.append(f"■ 日本小型株 モメンタムTOP10\n{buildJpMomentumSection()}")
+
+  # 9. ギャップスキャン
+  log("batch_morning", "ギャップスキャン...")
+  sections.append(f"■ 日本株 ギャップスキャン (GD候補)\n{buildGapScanSection()}")
 
   # 統合レポート送信
   report = "\n\n".join(sections)

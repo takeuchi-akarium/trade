@@ -20,7 +20,7 @@ import requests
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, request as flaskRequest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -334,8 +334,80 @@ def apiTraderFunda():
     return jsonify({"error": str(e)}), 500
 
 
+# ── Gap Scan ──
+
+@app.route("/gap-scan")
+def gapScan():
+  return send_from_directory(ROOT / "docs", "gap_scan.html")
+
+
+@app.route("/api/gap-scan")
+def apiGapScan():
+  """ギャップスキャン結果をJSON返却 (5分キャッシュ、refresh=1でクリア)"""
+  if flaskRequest.args.get("refresh") == "1" and "gap_scan" in CACHE:
+    del CACHE["gap_scan"]
+
+  def _fetch():
+    from strategies.jp_stock.gap_scanner import generateMorningReport
+    return generateMorningReport()
+
+  report = cached("gap_scan", _fetch)
+  if report is None:
+    return jsonify({"error": "スキャン失敗"}), 500
+  return jsonify(report)
+
+
+# ── Trade Journal ──
+
+JOURNAL_DIR = DATA_DIR / "trade_journal"
+
+
+@app.route("/trade-journal")
+def tradeJournal():
+  return send_from_directory(ROOT / "docs", "trade_journal.html")
+
+
+@app.route("/api/trade-journal")
+def apiTradeJournal():
+  """判断記録一覧 + 統計"""
+  from trade_journal import loadEntries, calcStats
+  return jsonify({
+    "entries": loadEntries(),
+    "stats": calcStats(),
+  })
+
+
+@app.route("/api/trade-journal", methods=["POST"])
+def apiTradeJournalAdd():
+  """新規エントリ追加"""
+  from trade_journal import addEntry
+  data = flaskRequest.get_json()
+  entry = addEntry(
+    ticker=data.get("ticker", ""),
+    direction=data.get("direction", "long"),
+    name=data.get("name", ""),
+    preMarket=data.get("pre_market"),
+    technicals=data.get("technicals"),
+    news=data.get("news"),
+    reasoning=data.get("reasoning", ""),
+  )
+  return jsonify(entry), 201
+
+
+@app.route("/api/trade-journal/screenshot/<path:filename>")
+def apiTradeJournalScreenshot(filename):
+  """板スクリーンショット配信"""
+  screenshotDir = JOURNAL_DIR / "screenshots"
+  resolved = (screenshotDir / filename).resolve()
+  if not resolved.is_relative_to(screenshotDir.resolve()):
+    return jsonify({"error": "not found"}), 404
+  return send_from_directory(screenshotDir, filename)
+
+
 if __name__ == "__main__":
   print("Dashboard:    http://localhost:5000")
   print("Simulations:  http://localhost:5000/simulations")
   print("Trader:       http://localhost:5000/trader")
+  print("Gap Scan:     http://localhost:5000/gap-scan")
+  print("Journal:      http://localhost:5000/trade-journal")
   app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", port=5000)

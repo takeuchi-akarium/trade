@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gap Scan — 日本株ギャップスキャナー</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e1e4eb; --muted: #8b8fa3;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+    --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.4;
+  }
+  .header {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; }
+  .header nav { display: flex; gap: 16px; }
+  .header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header a:hover { color: var(--text); }
+
+  .container { padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+
+  .summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-bottom: 16px;
+  }
+  .summary-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .summary-card .val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-card .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px;
+  }
+
+  /* 推奨バッジ */
+  .badge {
+    display: inline-block; border-radius: 4px; padding: 2px 8px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+  }
+  .badge-entry { background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid var(--green); }
+  .badge-caution { background: rgba(234,179,8,0.2); color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge-skip { background: rgba(139,143,163,0.15); color: var(--muted); border: 1px solid var(--border); }
+
+  /* テーブル */
+  .table-wrap {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  col.c-code { width: 72px; }
+  col.c-name { width: 90px; }
+  col.c-price { width: 75px; }
+  col.c-gd { width: 75px; }
+  col.c-score { width: 90px; }
+  col.c-atr { width: 72px; }
+  col.c-mom { width: 78px; }
+  col.c-vol { width: 72px; }
+  col.c-fill { width: 72px; }
+  thead th {
+    padding: 8px 12px; text-align: right;
+    background: rgba(42,45,58,0.7); color: var(--muted);
+    font-size: 11px; font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  thead th:first-child, thead th:nth-child(2) { text-align: left; }
+  thead th .th-sub {
+    display: block; font-weight: 400; font-size: 9px; opacity: 0.7;
+    margin-top: 2px; line-height: 1.3; text-transform: none; letter-spacing: 0;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+  tbody td { padding: 10px 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td:first-child, tbody td:nth-child(2) { text-align: left; }
+
+  .detail-row td {
+    padding: 4px 12px 10px 12px;
+    text-align: left; color: var(--muted); font-size: 11px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-row:last-child td { border-bottom: none; }
+
+  /* セル内評価ラベル */
+  .cell-eval {
+    display: block; font-size: 10px; margin-top: 2px; font-weight: 400;
+    line-height: 1.2;
+  }
+  .eval-good { color: var(--green); }
+  .eval-ok { color: var(--muted); }
+  .eval-warn { color: var(--yellow); }
+  .eval-bad { color: var(--red); }
+
+  .news-item { margin-top: 3px; }
+  .news-item a { color: var(--blue); text-decoration: none; font-size: 11px; }
+  .news-item a:hover { text-decoration: underline; }
+
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neu { color: var(--muted); }
+
+  .loading { color: var(--muted); text-align: center; padding: 40px; font-size: 14px; }
+  .error { color: var(--red); text-align: center; padding: 20px; font-size: 13px; }
+
+  /* 折りたたみガイド */
+  .guide {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 16px;
+  }
+  .guide summary {
+    padding: 12px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
+    color: var(--muted); list-style: none; display: flex; align-items: center; gap: 8px;
+  }
+  .guide summary::-webkit-details-marker { display: none; }
+  .guide summary::before { content: "▸"; transition: transform 0.2s; }
+  .guide[open] summary::before { transform: rotate(90deg); }
+  .guide summary:hover { color: var(--text); }
+  .guide-body { padding: 0 16px 16px; font-size: 12px; line-height: 1.7; color: var(--muted); }
+  .guide-body h3 {
+    font-size: 12px; font-weight: 700; color: var(--text);
+    margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid var(--border);
+  }
+  .guide-body h3:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+  .guide-body p { margin: 4px 0; }
+  .guide-body ul { margin: 4px 0 4px 20px; }
+  .guide-body li { margin: 3px 0; }
+  .guide-body code {
+    background: rgba(255,255,255,0.07); padding: 1px 5px; border-radius: 3px;
+    font-size: 11px; font-family: "SF Mono", "Consolas", monospace;
+  }
+  .guide-body .flow-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .guide-body .flow-table th, .guide-body .flow-table td {
+    padding: 6px 10px; border: 1px solid var(--border); font-size: 11px; text-align: left;
+  }
+  .guide-body .flow-table th { background: rgba(42,45,58,0.7); color: var(--text); font-weight: 600; }
+  .guide-body .badge-inline {
+    display: inline-block; border-radius: 3px; padding: 1px 6px;
+    font-size: 10px; font-weight: 700; vertical-align: middle;
+  }
+  .guide-body .bi-entry { background: rgba(34,197,94,0.2); color: var(--green); }
+  .guide-body .bi-caution { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .guide-body .bi-skip { background: rgba(139,143,163,0.15); color: var(--muted); }
+
+  .reload-btn {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  .reload-btn:hover { color: var(--text); border-color: var(--text); }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .filter-btn {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  .filter-btn:hover { color: var(--text); }
+  .filter-btn.active { color: var(--text); border-color: var(--text); background: var(--border); }
+
+  @media (max-width: 700px) {
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .table-wrap { overflow-x: auto; }
+    table { min-width: 800px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Gap Scan — 日本株ギャップスキャナー</h1>
+  <nav>
+    <a href="/">&larr; Dashboard</a>
+    <a href="/trader">Trader</a>
+    <a href="/simulations">Simulations</a>
+  </nav>
+</div>
+
+<div class="container">
+  <!-- マクロ概況 -->
+  <div class="summary">
+    <div class="summary-card">
+      <div class="val" id="nikkeiPrice">--</div>
+      <div class="lbl">日経225 (前日終値)</div>
+    </div>
+    <div class="summary-card">
+      <div class="val" id="nikkeiChg">--</div>
+      <div class="lbl">前日比</div>
+    </div>
+    <div class="summary-card">
+      <div class="val" id="usdJpy">--</div>
+      <div class="lbl">ドル円</div>
+    </div>
+    <div class="summary-card">
+      <div class="val" id="updatedAt">--</div>
+      <div class="lbl">スキャン時刻 (JST)</div>
+    </div>
+  </div>
+
+  <!-- 候補数サマリー -->
+  <div class="summary" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;">
+    <div class="summary-card">
+      <div class="val pos" id="cntEntry">--</div>
+      <div class="lbl">ENTRY 推奨</div>
+    </div>
+    <div class="summary-card">
+      <div class="val" style="color:var(--yellow)" id="cntCaution">--</div>
+      <div class="lbl">CAUTION</div>
+    </div>
+    <div class="summary-card">
+      <div class="val neu" id="cntSkip">--</div>
+      <div class="lbl">SKIP</div>
+    </div>
+  </div>
+
+  <!-- 買い方ガイド -->
+  <details class="guide">
+    <summary>買い方ガイド — 具体的な手順</summary>
+    <div class="guide-body">
+
+      <h3>ざっくり言うと</h3>
+      <p>前日より<strong>2%以上安く</strong>始まった株を朝イチで買い、<strong>元の値段に戻ったら売る</strong>。戻らなかったら3日以内に手仕舞い。</p>
+
+      <h3 style="border-top:2px solid var(--green)">STEP 1 — 朝チェック（8:00）</h3>
+      <p>この画面を開いて、下の表を見る。</p>
+      <ul>
+        <li><span class="badge-inline bi-entry">ENTRY</span> が付いている銘柄 → <strong>買い候補</strong>。スコア55以上が目安</li>
+        <li><span class="badge-inline bi-caution">CAUTION</span> → ニュースを確認してから判断</li>
+        <li><span class="badge-inline bi-skip">SKIP</span> → 触らない</li>
+      </ul>
+
+      <h3>STEP 2 — ニュース確認（8:00-8:50）</h3>
+      <p>銘柄コード（青リンク）をクリックしてYahoo Financeを開く。以下をチェック：</p>
+      <table class="flow-table">
+        <tr><th>ニュース内容</th><th>判断</th></tr>
+        <tr><td>特になし / 米国株安の影響だけ</td><td style="color:var(--green)">買ってOK（一時的な下げ）</td></tr>
+        <tr><td>決算発表で業績悪化</td><td style="color:var(--red)">買わない（本質的な下げ）</td></tr>
+        <tr><td>下方修正・減配</td><td style="color:var(--red)">買わない</td></tr>
+        <tr><td>アナリスト格下げ</td><td style="color:var(--yellow)">慎重に判断</td></tr>
+        <tr><td>不祥事・訴訟</td><td style="color:var(--red)">買わない</td></tr>
+      </table>
+
+      <h3>STEP 3 — 板情報チェック（8:55）</h3>
+      <p>証券会社のアプリで、その銘柄の板（注文状況）を見る。</p>
+      <table class="flow-table">
+        <tr><th>板の状態</th><th>判断</th></tr>
+        <tr><td>買い注文が多い / 買い板が厚い</td><td style="color:var(--green)">反発しそう → 買う</td></tr>
+        <tr><td>売り注文だらけ / 気配値がどんどん下がる</td><td style="color:var(--red)">まだ下がる → 見送り</td></tr>
+      </table>
+
+      <h3 style="border-top:2px solid var(--blue)">STEP 4 — 買う（9:00）</h3>
+      <p>寄り付き（9:00）で<strong>成行注文</strong>を出す。同時に以下の2つの注文も入れる：</p>
+      <table class="flow-table">
+        <tr><th>注文</th><th>価格</th><th>意味</th></tr>
+        <tr>
+          <td style="color:var(--green)"><strong>利確（指値売り）</strong></td>
+          <td>前日終値</td>
+          <td>窓埋め完了 = ゴール。<br>例: 前日3,000円で始値2,910円なら、3,000円で売り指値</td>
+        </tr>
+        <tr>
+          <td style="color:var(--red)"><strong>損切り（逆指値売り）</strong></td>
+          <td>買値の -1.5%</td>
+          <td>これ以上下がったら自動で損切り。<br>例: 2,910円で買ったら、2,866円で逆指値</td>
+        </tr>
+      </table>
+      <p>→ <strong>注文を出したらあとは放置</strong>。利確か損切りが自動で約定する。</p>
+
+      <h3 style="border-top:2px solid var(--yellow)">STEP 5 — 3日ルール</h3>
+      <p>利確にも損切りにもかからず<strong>3日経ったら引けで売る</strong>。</p>
+      <p>窓埋めしない = この下げは戻らない可能性が高い。ズルズル持たない。</p>
+
+      <h3 style="border-top:2px solid var(--red)">絶対やらないこと</h3>
+      <table class="flow-table">
+        <tr><th>NG行動</th><th>理由</th></tr>
+        <tr><td>決算発表後のGDを買う</td><td>業績悪化は「適正な下げ」。戻らない</td></tr>
+        <tr><td>損切りラインを外す・ずらす</td><td>「もう少し待てば戻る」は危険。機械的に切る</td></tr>
+        <tr><td>全額一点集中</td><td>連敗で退場する。資金の30-70%まで</td></tr>
+        <tr><td>SKIP銘柄に手を出す</td><td>低ボラ・低フィル率は構造的に負ける</td></tr>
+      </table>
+
+      <h3>いくら投入するか（ポジションサイズ）</h3>
+      <p>GDの大きさが、その銘柄の<strong>普段の値動き（ATR）の何倍か</strong>で決める。</p>
+      <table class="flow-table">
+        <tr><th>GD幅 / ATR</th><th>投入額</th><th>考え方</th></tr>
+        <tr><td>1倍以下</td><td style="color:var(--green)">資金の <strong>70%</strong></td><td>普段の範囲内。自信を持っていい</td></tr>
+        <tr><td>1〜2倍</td><td>資金の <strong>50%</strong></td><td>やや大きいが許容範囲</td></tr>
+        <tr><td>2〜3倍</td><td style="color:var(--yellow)">資金の <strong>30%</strong></td><td>異常に大きい。控えめに</td></tr>
+        <tr><td>3倍以上</td><td style="color:var(--red)">資金の <strong>30%</strong>（最小）</td><td>何か起きている。最小ロット</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--muted)">例: 資金5万円、ATR 3%の銘柄が4%GD → GD/ATR = 1.3倍 → 5万円の50% = 25,000円分買う</p>
+
+      <h3>具体例（全体の流れ）</h3>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;line-height:1.8">
+        <strong>資金5万円。INPEXがスコア77で ENTRY。</strong><br>
+        <br>
+        前日終値: <strong>4,147円</strong><br>
+        GD想定価格: 4,064円（-2%）<br>
+        ATR: 5.5%<br>
+        <br>
+        <span style="color:var(--muted)">8:00</span> スキャナーで確認。スコア77、ENTRY。ニュース = 特になし<br>
+        <span style="color:var(--muted)">8:55</span> 板情報 → 買い板厚い。GO判断<br>
+        <span style="color:var(--muted)">9:00</span> 始値 <strong>4,020円</strong>（GD -3.1%）で成行買い<br>
+        <span style="color:var(--muted)">　　</span> GD/ATR = 3.1/5.5 = 0.56倍 → 資金の70% = 35,000円 → <strong>8株</strong>購入<br>
+        <span style="color:var(--muted)">　　</span> 利確指値: <strong>4,147円</strong>（前日終値）<br>
+        <span style="color:var(--muted)">　　</span> 逆指値: <strong>3,960円</strong>（買値-1.5%）<br>
+        <br>
+        <span style="color:var(--green)">翌日</span> 高値4,160円 → <strong>4,147円で利確!</strong><br>
+        利益: (4,147 - 4,020) × 8株 = <strong>+1,016円</strong>（+3.2%）
+      </div>
+
+      <h3>注意事項</h3>
+      <ul>
+        <li>この画面のデータは<strong>前日終値ベース</strong>。実際の始値は変わるので板情報で確認</li>
+        <li>SBI証券なら1日100万円まで<strong>手数料無料</strong></li>
+        <li>バックテスト結果は過去の実績であり、将来の利益を保証するものではない</li>
+      </ul>
+
+    </div>
+  </details>
+
+  <!-- 各列の見方 -->
+  <details class="guide">
+    <summary>表の見方 — 各列の意味</summary>
+    <div class="guide-body">
+      <table class="flow-table">
+        <tr><th>列</th><th>意味</th><th>良い値</th><th>悪い値</th></tr>
+        <tr><td><strong>スコア</strong></td><td>4指標を0-100に合算した総合評価</td><td style="color:var(--green)">55以上</td><td style="color:var(--red)">25以下</td></tr>
+        <tr><td><strong>ATR%</strong></td><td>14日間の平均値動き幅。高い = 普段からよく動く = GDが普通の値動き範囲内で戻りやすい</td><td style="color:var(--green)">3%以上</td><td style="color:var(--red)">1.5%未満</td></tr>
+        <tr><td><strong>mom5</strong></td><td>直近5日の騰落率。マイナス = 既に下がっている = さらにGDしても「売られすぎ」で反発しやすい</td><td style="color:var(--green)">-5%以下</td><td style="color:var(--red)">+5%以上</td></tr>
+        <tr><td><strong>出来高比</strong></td><td>直近5日の出来高が20日平均の何倍か。高い = 多くの人が注目 = GD後に買いが入りやすい</td><td style="color:var(--green)">1.2x以上</td><td style="color:var(--yellow)">0.8x以下</td></tr>
+        <tr><td><strong>フィル率</strong></td><td>過去60日間でGDした後に窓埋めできた割合。その銘柄の「窓埋め実績」</td><td style="color:var(--green)">40%以上</td><td style="color:var(--red)">15%未満</td></tr>
+        <tr><td><strong>GD想定価格</strong></td><td>前日終値から2%引いた水準。実際の始値がこれ以下ならエントリー条件成立</td><td colspan="2" style="color:var(--muted)">始値がこれ以下なら条件OK</td></tr>
+      </table>
+    </div>
+  </details>
+
+  <!-- 戦略の仕組み -->
+  <details class="guide">
+    <summary>戦略の仕組み — なぜギャップは埋まるのか</summary>
+    <div class="guide-body">
+
+      <h3>ギャップ発生のメカニズム</h3>
+      <p>東証は<strong>板寄せ方式</strong>で始値を決定します。15:00の閉場から翌9:00の開場まで18時間の空白があり、その間に米国市場の動き・決算発表・為替変動などが起きます。翌朝、それらを織り込んだ注文が一括マッチングされるため、前日終値から大きく乖離した始値（ギャップ）が発生します。</p>
+
+      <h3>なぜ「過剰反応」が起きるか</h3>
+      <ul>
+        <li><strong>個人投資家の感情的な売り</strong> — 夜間ニュースを見て怖くなり、成行売り注文を出す</li>
+        <li><strong>機関投資家は冷静</strong> — 適正価格を計算して指値で買いを入れている</li>
+        <li><strong>流動性の断絶</strong> — 18時間取引できないため、売り注文が溜まり始値に一気に反映される</li>
+      </ul>
+      <p>→ この戦略は<strong>機関と同じ側に立って、個人の恐怖を拾う</strong>構造です。</p>
+
+      <h3>窓が埋まる条件 / 埋まらない条件</h3>
+      <table class="flow-table">
+        <tr><th></th><th>埋まる（過剰反応）</th><th>埋まらない（本質的な変化）</th></tr>
+        <tr><td>原因</td><td>感情的な売り、需給の歪み</td><td>決算ミス、業績悪化、構造変化</td></tr>
+        <tr><td>出来高</td><td>少ない（個人の投げ売り）</td><td>急増（機関が本気で売っている）</td></tr>
+        <tr><td>ATR対比</td><td>普段の値動き範囲内</td><td>普段の2-3倍の異常な動き</td></tr>
+        <tr><td>市場</td><td>個別要因 or 全面パニック</td><td>8-14銘柄のじわ売り</td></tr>
+      </table>
+
+      <h3>バックテスト実績（23銘柄、3年間）</h3>
+      <table class="flow-table">
+        <tr><th>設定</th><th>リターン</th><th>MDD</th><th>勝率</th><th>PF</th></tr>
+        <tr><td>フィルターなし</td><td>+779%</td><td>-19.3%</td><td>43.9%</td><td>1.47</td></tr>
+        <tr><td>全フィルター</td><td>+360%</td><td>-15.4%</td><td>45.3%</td><td>1.46</td></tr>
+        <tr><td>全フィルター + 保守的サイズ</td><td>+152%</td><td>-9.4%</td><td>45.3%</td><td>1.46</td></tr>
+      </table>
+      <p>保守的設定（最大60%投入）で年率約35%、MDD -9.4%。ここに手動のニュース判断を加えることでさらに負けを減らせる見込み。</p>
+
+    </div>
+  </details>
+
+  <!-- フィルターバー -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" data-filter="all">すべて</button>
+      <button class="filter-btn" data-filter="ENTRY">ENTRY</button>
+      <button class="filter-btn" data-filter="CAUTION">CAUTION</button>
+    </div>
+    <button class="reload-btn" id="reloadBtn">更新</button>
+  </div>
+
+  <div class="section-label">GD候補銘柄 — ATR順</div>
+
+  <div id="tableContainer" class="table-wrap">
+    <div class="loading">スキャン中...</div>
+  </div>
+
+</div>
+
+<script>
+  let allCandidates = [];
+  let activeFilter = 'all';
+
+  function colorClass(val) {
+    if (val > 0) return 'pos';
+    if (val < 0) return 'neg';
+    return 'neu';
+  }
+
+  function sign(val) {
+    return val >= 0 ? '+' : '';
+  }
+
+  function fmtNum(val, digits = 1) {
+    return Number(val).toFixed(digits);
+  }
+
+  function recBadge(rec) {
+    const cls = { ENTRY: 'badge-entry', CAUTION: 'badge-caution', SKIP: 'badge-skip' }[rec] || 'badge-skip';
+    return `<span class="badge ${cls}">${rec}</span>`;
+  }
+
+  // スコアの評価
+  function evalScore(v) {
+    if (v >= 75) return ['eval-good', '非常に有望'];
+    if (v >= 55) return ['eval-good', '良好'];
+    if (v >= 40) return ['eval-ok', '普通'];
+    if (v >= 25) return ['eval-warn', 'やや弱い'];
+    return ['eval-bad', '非推奨'];
+  }
+  function scoreBar(v) {
+    const [cls] = evalScore(v);
+    const color = cls === 'eval-good' ? 'var(--green)' : cls === 'eval-ok' ? 'var(--muted)' : cls === 'eval-warn' ? 'var(--yellow)' : 'var(--red)';
+    return `<div style="width:100%;height:4px;background:var(--border);border-radius:2px;margin-top:4px;">` +
+           `<div style="width:${v}%;height:100%;background:${color};border-radius:2px;"></div></div>`;
+  }
+
+  // Yahoo Finance JP リンク生成
+  function yahooLink(symbol) {
+    const code = symbol.replace('.T', '');
+    return `https://finance.yahoo.co.jp/quote/${code}.T`;
+  }
+
+  // 各指標の評価ラベル生成
+  function evalAtr(v) {
+    if (v >= 3) return ['eval-good', '高ボラ — 埋まりやすい'];
+    if (v >= 2) return ['eval-ok', '水準OK'];
+    if (v >= 1.5) return ['eval-warn', 'やや低い'];
+    return ['eval-bad', '低ボラ — 危険'];
+  }
+  function evalMom5(v) {
+    if (v <= -5) return ['eval-good', '急落中 — 過剰反応の可能性大'];
+    if (v <= -1) return ['eval-good', '下落中 — 反発しやすい'];
+    if (v <= 1) return ['eval-ok', '横ばい'];
+    if (v <= 5) return ['eval-warn', '上昇中 — 転換リスク'];
+    return ['eval-bad', '急騰中 — 転換初動の恐れ'];
+  }
+  function evalVol(v) {
+    if (v >= 2.0) return ['eval-good', '急増 — 注目度高い'];
+    if (v >= 1.2) return ['eval-good', '増加傾向 — 買い手豊富'];
+    if (v >= 0.8) return ['eval-ok', '通常'];
+    return ['eval-warn', '減少 — 買い手少ない'];
+  }
+  function evalFill(v) {
+    if (v >= 40) return ['eval-good', '高フィル率 — 実績あり'];
+    if (v >= 30) return ['eval-ok', '水準OK'];
+    if (v >= 15) return ['eval-warn', 'やや低い'];
+    return ['eval-bad', '低すぎ — エントリー非推奨'];
+  }
+
+  function cellWithEval(value, evalFn, rawVal, extraClass) {
+    const [cls, label] = evalFn(rawVal);
+    return `<span>${value}</span><span class="cell-eval ${cls}">${label}</span>`;
+  }
+
+  function renderTable(candidates) {
+    const container = document.getElementById('tableContainer');
+    if (!candidates || candidates.length === 0) {
+      container.innerHTML = '<div class="loading">候補なし</div>';
+      return;
+    }
+
+    // 推奨順ソート
+    const order = { ENTRY: 0, CAUTION: 1, SKIP: 2 };
+    const sorted = [...candidates].sort((a, b) => {
+      const od = order[a.recommendation] - order[b.recommendation];
+      return od !== 0 ? od : b.atrPct - a.atrPct;
+    });
+
+    let rows = '';
+    for (const c of sorted) {
+      const chgClass = colorClass(c.mom5);
+      const vtClass = c.volTrend >= 1.2 ? 'pos' : c.volTrend < 0.8 ? 'neg' : 'neu';
+
+      const sc = c.score ?? 0;
+
+      rows += `<tr>
+        <td><a href="${yahooLink(c.symbol)}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;">${c.symbol}</a></td>
+        <td>${c.name}</td>
+        <td>${c.lastClose.toLocaleString('ja', {minimumFractionDigits:1, maximumFractionDigits:1})}<span class="cell-eval eval-ok">${c.lastDate || ''}</span></td>
+        <td>${c.gdEntryPrice.toLocaleString('ja', {minimumFractionDigits:1, maximumFractionDigits:1})}</td>
+        <td><strong style="font-size:16px">${sc}</strong><span style="color:var(--muted);font-size:11px">/100</span>${scoreBar(sc)}<div style="margin-top:4px">${recBadge(c.recommendation)}</div></td>
+        <td>${cellWithEval(fmtNum(c.atrPct) + '%', evalAtr, c.atrPct)}</td>
+        <td class="${chgClass}">${cellWithEval(sign(c.mom5) + fmtNum(c.mom5) + '%', evalMom5, c.mom5)}</td>
+        <td class="${vtClass}">${cellWithEval(fmtNum(c.volTrend, 2) + 'x', evalVol, c.volTrend)}</td>
+        <td>${cellWithEval(fmtNum(c.histFillRate) + '%', evalFill, c.histFillRate)}</td>
+      </tr>`;
+
+      // 注文情報（直感的に発注できるように）
+      const entryPrice = c.gdEntryPrice;
+      const slPrice = (entryPrice * 0.985).toFixed(0);
+      const tpPrice = c.lastClose.toFixed(0);
+      const profitPct = ((c.lastClose - entryPrice) / entryPrice * 100).toFixed(1);
+
+      // 投入額（GD/ATR比で動的）
+      const gdPct = ((c.lastClose - entryPrice) / c.lastClose * 100);
+      const gdAtrRatio = c.atrPct > 0 ? gdPct / c.atrPct : 1;
+      let sizePctLabel, sizePctVal;
+      if (gdAtrRatio <= 1.0) { sizePctLabel = '70%'; sizePctVal = 0.7; }
+      else if (gdAtrRatio <= 2.0) { sizePctLabel = '50%'; sizePctVal = 0.5; }
+      else if (gdAtrRatio <= 3.0) { sizePctLabel = '30%'; sizePctVal = 0.3; }
+      else { sizePctLabel = '30%'; sizePctVal = 0.3; }
+
+      const isActive = c.recommendation === 'ENTRY' || c.recommendation === 'CAUTION';
+
+      // 詳細行
+      const reasonStr = (c.reason || []).join(' / ');
+      const newsHtml = (c.news || []).slice(0, 2).map(n =>
+        `<div class="news-item">NEWS: <a href="${n.url}" target="_blank" rel="noopener">${n.title}</a></div>`
+      ).join('');
+      const yfLink = `<a href="${yahooLink(c.symbol)}" target="_blank" rel="noopener" style="color:var(--blue);font-size:11px;text-decoration:none;">Yahoo Finance →</a>`;
+
+      // 一意ID
+      const uid = c.symbol.replace('.', '_');
+
+      let detailInner = '';
+      if (isActive) {
+        const leftCol = [
+          reasonStr ? `<div style="margin-bottom:4px">理由: ${reasonStr}</div>` : '',
+          newsHtml,
+          `<div style="margin-top:4px">${yfLink}</div>`,
+        ].filter(Boolean).join('');
+
+        const rightCol = `
+          <div style="font-size:12px;line-height:1.6;">
+            <div>始値 <input type="number" id="inp_${uid}" placeholder="${entryPrice.toFixed(0)}" step="1"
+              style="width:76px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;text-align:right;"
+              oninput="recalc('${uid}', ${c.lastClose}, ${c.atrPct})"><span id="gd_${uid}" style="font-size:11px;margin-left:4px;"></span>　<span id="tp_${uid}">利確 <strong style="color:var(--green)">${tpPrice}円</strong><span style="opacity:0.5">(+${profitPct}%)</span></span>　<span id="sl_${uid}">損切 <strong style="color:var(--red)">${slPrice}円</strong><span style="opacity:0.5">(-1.5%)</span></span></div>
+            <div><span id="size_${uid}">投入 資金の<strong>${sizePctLabel}</strong><span style="opacity:0.5"> GD/ATR=${gdAtrRatio.toFixed(1)}倍</span></span>　期限 <strong>3日</strong></div>
+          </div>`;
+
+        detailInner = `<div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start;">
+          <div>${leftCol}</div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;white-space:nowrap;">${rightCol}</div>
+        </div>`;
+      } else {
+        detailInner = [
+          reasonStr ? `理由: ${reasonStr}` : '',
+          `<div style="margin-top:4px">${yfLink}</div>`,
+        ].filter(Boolean).join('');
+      }
+
+      rows += `<tr class="detail-row"><td colspan="9">${detailInner}</td></tr>`;
+    }
+
+    container.innerHTML = `
+      <table>
+        <colgroup>
+          <col class="c-code"><col class="c-name"><col class="c-price"><col class="c-gd">
+          <col class="c-score"><col class="c-atr"><col class="c-mom"><col class="c-vol">
+          <col class="c-fill">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>コード</th>
+            <th>名前</th>
+            <th>直近終値<span class="th-sub">日付を確認</span></th>
+            <th>GD想定<span class="th-sub">終値-2%</span></th>
+            <th>スコア / 推奨<span class="th-sub">4指標の総合評価<br>0-100</span></th>
+            <th>ATR%<span class="th-sub">値動き幅<br>高い=埋まりやすい</span></th>
+            <th>mom5<span class="th-sub">5日騰落率<br>負=反発期待</span></th>
+            <th>出来高比<span class="th-sub">5日/20日平均<br>高い=注目度高</span></th>
+            <th>フィル率<span class="th-sub">過去60日の<br>窓埋め成功率</span></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function recalc(uid, lastClose, atrPct) {
+    const inp = document.getElementById('inp_' + uid);
+    const gdEl = document.getElementById('gd_' + uid);
+    const tpEl = document.getElementById('tp_' + uid);
+    const slEl = document.getElementById('sl_' + uid);
+    const sizeEl = document.getElementById('size_' + uid);
+    if (!inp) return;
+
+    const buyPrice = parseFloat(inp.value);
+    if (!buyPrice || buyPrice <= 0) {
+      if (gdEl) gdEl.textContent = '';
+      return;
+    }
+
+    const gdPctActual = (buyPrice - lastClose) / lastClose * 100;
+    const gdAtr = atrPct > 0 ? Math.abs(gdPctActual) / atrPct : 1;
+    const tp = lastClose;
+    const sl = Math.round(buyPrice * 0.985);
+    const profPct = ((tp - buyPrice) / buyPrice * 100).toFixed(1);
+
+    let sizeLabel;
+    if (gdAtr <= 1.0) sizeLabel = '70%';
+    else if (gdAtr <= 2.0) sizeLabel = '50%';
+    else if (gdAtr <= 3.0) sizeLabel = '30%';
+    else sizeLabel = '30%';
+
+    const ok = gdPctActual <= -2.0;
+    const gdColor = ok ? 'var(--green)' : 'var(--red)';
+    const gdLabel = ok ? 'GD条件OK' : 'GD不足';
+    if (gdEl) gdEl.innerHTML = `<span style="color:${gdColor}">${gdPctActual.toFixed(1)}% ${gdLabel}</span>`;
+    if (tpEl) tpEl.innerHTML = `利確 <strong style="color:var(--green)">${tp.toFixed(0)}円</strong><span style="opacity:0.5">(+${profPct}%)</span>`;
+    if (slEl) slEl.innerHTML = `損切 <strong style="color:var(--red)">${sl}円</strong><span style="opacity:0.5">(-1.5%)</span>`;
+    if (sizeEl) sizeEl.innerHTML = `投入 資金の<strong>${sizeLabel}</strong><span style="opacity:0.5"> GD/ATR=${gdAtr.toFixed(1)}倍</span>`;
+  }
+
+  function applyFilter(filter) {
+    activeFilter = filter;
+    document.querySelectorAll('#filterBar .filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    const filtered = filter === 'all'
+      ? allCandidates
+      : allCandidates.filter(c => c.recommendation === filter);
+    renderTable(filtered);
+  }
+
+  async function loadData() {
+    document.getElementById('tableContainer').innerHTML = '<div class="loading">スキャン中...</div>';
+    try {
+      const resp = await fetch('/api/gap-scan?refresh=1&t=' + Date.now());
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      // マクロ概況
+      const nk = data.nikkei || {};
+      if (nk.price != null) {
+        document.getElementById('nikkeiPrice').textContent =
+          nk.price.toLocaleString('ja') + ' 円';
+        const chgEl = document.getElementById('nikkeiChg');
+        const chg = nk.change || 0;
+        chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        chgEl.className = 'val ' + (chg >= 0 ? 'pos' : 'neg');
+      }
+      const fx = data.usdjpy || {};
+      if (fx.rate != null) {
+        const fxSign = (fx.change || 0) >= 0 ? '+' : '';
+        document.getElementById('usdJpy').textContent =
+          fx.rate.toFixed(2) + ' (' + fxSign + (fx.change || 0).toFixed(2) + '%)';
+      }
+      if (data.generatedAt) {
+        const d = new Date(data.generatedAt);
+        document.getElementById('updatedAt').textContent =
+          d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      // 候補数
+      document.getElementById('cntEntry').textContent = data.entryCount ?? 0;
+      document.getElementById('cntCaution').textContent = data.cautionCount ?? 0;
+      document.getElementById('cntSkip').textContent = data.skipCount ?? 0;
+
+      // テーブル
+      allCandidates = data.candidates || [];
+      applyFilter(activeFilter);
+    } catch (e) {
+      document.getElementById('tableContainer').innerHTML =
+        `<div class="error">取得エラー: ${e.message}</div>`;
+    }
+  }
+
+  // フィルターボタン
+  document.querySelectorAll('#filterBar .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyFilter(btn.dataset.filter));
+  });
+
+  // 更新ボタン
+  document.getElementById('reloadBtn').addEventListener('click', loadData);
+
+  // 初回ロード
+  loadData();
+</script>
+</body>
+</html>
