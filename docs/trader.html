@@ -3,91 +3,133 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Trader</title>
+<title>DART - Auto Trader</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   :root {
     --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
     --text: #e1e4eb; --muted: #8b8fa3;
-    --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --blue: #3b82f6;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.4;
+    background: var(--bg); color: var(--text); line-height: 1.35; font-size: 13px;
   }
   .header {
-    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    padding: 8px 16px; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
   }
-  .header h1 { font-size: 15px; font-weight: 600; }
-  .header nav { display: flex; gap: 16px; }
-  .header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header h1 { font-size: 14px; font-weight: 600; }
+  .header nav { display: flex; gap: 14px; }
+  .header a { color: var(--muted); text-decoration: none; font-size: 12px; }
   .header a:hover { color: var(--text); }
-
-  .container { padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
-
-  /* Summary cards */
-  .summary {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-    margin-bottom: 16px;
-  }
-  .summary-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px;
-  }
-  .summary-card .val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .summary-card .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
-
+  .container { padding: 12px 16px; max-width: 1200px; margin: 0 auto; }
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col-full { grid-column: 1 / -1; }
   .section-label {
-    font-size: 11px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin: 0 0 6px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
   }
+  .card-row { display: grid; gap: 6px; margin-bottom: 8px; }
+  .card-row.col-2 { grid-template-columns: 1fr 1fr; }
+  .card-row.col-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-row.col-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px;
+  }
+  .card .val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card .val-sm { font-size: 14px; font-weight: 700; }
+  .card .lbl { font-size: 9px; color: var(--muted); margin-top: 1px; }
 
-  /* Strategy cards */
-  .strat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 10px; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+  .strat-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px; margin-bottom: 8px;
+  }
   .strat-card {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; padding: 16px;
+    border-radius: 6px; padding: 10px 12px;
   }
-  .strat-card .name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-  .strat-card .pos { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-  .strat-card .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; }
-  .strat-card .metric .val { font-size: 18px; font-weight: 700; }
-  .strat-card .metric .lbl { font-size: 10px; color: var(--muted); }
+  .strat-card .head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+  }
+  .strat-card .name { font-size: 13px; font-weight: 600; }
+  .strat-card .badge { font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 3px; }
+  .strat-card .meta { font-size: 10px; color: var(--muted); display: flex; gap: 10px; margin-top: 3px; }
+  .strat-card .reason { font-size: 11px; color: var(--muted); }
+  .strat-card .order { font-size: 11px; color: var(--text); margin-top: 3px; }
+  .strat-card .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin: 6px 0 2px; }
+  .strat-card .metric .val { font-size: 15px; font-weight: 700; }
+  .strat-card .metric .lbl { font-size: 9px; color: var(--muted); }
+  .strat-card .pos-label { font-size: 11px; margin-bottom: 6px; }
 
-  /* Trade log */
+  .action-box {
+    background: var(--card); border: 2px solid var(--border);
+    border-radius: 8px; padding: 14px; text-align: center;
+  }
+  .action-box.active { border-color: var(--yellow); }
+  .action-box .rec { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+
+  .btn {
+    padding: 7px 20px; font-size: 13px; font-weight: 700;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-blue { background: var(--blue); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-red { background: var(--red); color: white; }
+  .btn-muted { background: var(--border); color: var(--muted); cursor: default; }
+  .btn-lg { padding: 12px 36px; font-size: 15px; }
+  .hint { font-size: 10px; color: var(--muted); min-height: 14px; }
+
+  .bb-chart { width: 100%; height: 380px; }
+  .pnl-chart { width: 100%; height: 200px; }
+  .range-btn {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 3px; padding: 2px 8px; font-size: 10px; cursor: pointer;
+  }
+  .range-btn:hover { color: var(--text); border-color: var(--text); }
+  .range-btn.active { color: var(--text); border-color: var(--text); background: var(--border); }
+
   .trade-log {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 16px; max-height: 400px; overflow-y: auto;
+    border-radius: 6px; padding: 8px 12px; max-height: 280px; overflow-y: auto;
   }
   .trade-row {
-    display: flex; gap: 12px; padding: 6px 0;
-    border-bottom: 1px solid var(--border); font-size: 13px;
-    font-variant-numeric: tabular-nums;
+    display: flex; gap: 8px; padding: 3px 0;
+    border-bottom: 1px solid var(--border); font-size: 11px; font-variant-numeric: tabular-nums;
   }
   .trade-row:last-child { border-bottom: none; }
-  .trade-row .dt { color: var(--muted); min-width: 140px; }
-  .trade-row .type { min-width: 80px; font-weight: 600; }
+  .trade-row .dt { color: var(--muted); min-width: 120px; }
+  .trade-row .type { min-width: 70px; font-weight: 600; }
   .trade-row .type.buy { color: var(--green); }
   .trade-row .type.sell, .trade-row .type.short { color: var(--red); }
   .trade-row .type.close_long { color: var(--red); }
   .trade-row .type.close_short { color: var(--green); }
-  .trade-row .detail { color: var(--muted); }
   .trade-row .pnl { margin-left: auto; font-weight: 600; }
 
-  .chart { width: 100%; height: 300px; margin-bottom: 16px; }
-  .bb-chart { width: 100%; height: 450px; margin-bottom: 16px; }
-  .range-btn {
-    background: var(--card); color: var(--muted); border: 1px solid var(--border);
-    border-radius: 4px; padding: 3px 10px; font-size: 11px; cursor: pointer;
+  .mode-toggle {
+    display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
   }
-  .range-btn:hover { color: var(--text); border-color: var(--text); }
-  .range-btn.active { color: var(--text); border-color: var(--text); background: var(--border); }
-  .empty { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+  .mode-toggle button {
+    padding: 4px 14px; font-size: 11px; font-weight: 600;
+    border: none; cursor: pointer; background: transparent; color: var(--muted);
+  }
+  .mode-toggle button.active-dry { background: var(--yellow); color: #000; }
+  .mode-toggle button.active-live { background: var(--red); color: white; }
+  .mode-toggle button:hover:not(.active-dry):not(.active-live) { background: var(--border); }
+  .stale-hint { font-size: 9px; color: var(--muted); font-style: italic; margin-bottom: 6px; }
+  .empty { color: var(--muted); font-size: 12px; padding: 12px; text-align: center; }
 
-  @media (max-width: 700px) {
-    .summary { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 800px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .card-row.col-4 { grid-template-columns: repeat(2, 1fr); }
+    .sig-grid { grid-template-columns: 1fr; }
     .strat-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -95,70 +137,128 @@
 <body>
 
 <div class="header">
-  <h1>Auto Trader</h1>
+  <h1>DART - Auto Trader</h1>
   <nav>
-    <a href="/">&larr; Dashboard</a>
+    <a href="/">Dashboard</a>
     <a href="/strategy">Strategy</a>
     <a href="/simulations">Simulations</a>
+    <a href="/trade-journal">Journal</a>
   </nav>
 </div>
 
 <div class="container">
-  <!-- Summary -->
-  <div id="summary" class="summary">
-    <div class="summary-card"><div class="val" id="sumPnl">--</div><div class="lbl">Total P&L</div></div>
-    <div class="summary-card"><div class="val" id="sumTrades">--</div><div class="lbl">Total Trades</div></div>
-    <div class="summary-card"><div class="val" id="sumWinRate">--</div><div class="lbl">Win Rate</div></div>
-    <div class="summary-card"><div class="val" id="sumUpdated">--</div><div class="lbl">Last Update</div></div>
-  </div>
+<div class="main-grid">
 
-  <!-- Funda Score -->
-  <div id="fundaCard" class="summary" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
-    <div class="summary-card"><div class="val" id="fundaScore">--</div><div class="lbl">Funda Score</div></div>
-    <div class="summary-card"><div class="val" id="fundaGold" style="font-size:16px">--</div><div class="lbl">Gold (GC=F)</div></div>
-    <div class="summary-card"><div class="val" id="fundaTnx" style="font-size:16px">--</div><div class="lbl">US 10Y Yield</div></div>
-    <div class="summary-card"><div class="val" id="fundaFng" style="font-size:16px">--</div><div class="lbl">Fear & Greed</div></div>
-  </div>
+  <!-- ═══ LEFT: DART分析・判断 ═══ -->
+  <div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="section-label" style="flex:1; margin:0">DART Analysis</div>
+      <span id="modeLabel" style="font-size:9px; color:var(--muted)"></span>
+      <div class="mode-toggle">
+        <button id="modeDry" onclick="toggleMode(true)">DRY</button>
+        <button id="modeLive" onclick="toggleMode(false)">LIVE</button>
+      </div>
+    </div>
+    <!-- Check + Action (横並び) -->
+    <div style="display:flex; gap:10px; align-items:stretch; margin:8px 0;">
+      <button id="dartCheckBtn" class="btn btn-blue" onclick="dartCheck()" style="white-space:nowrap">Check Now</button>
+      <div id="dartAction" class="action-box" style="flex:1; padding:8px 14px; display:flex; align-items:center; gap:12px; text-align:left;">
+        <div style="flex:1">
+          <div id="dartRec" style="font-size:15px; font-weight:700; color:var(--muted)">--</div>
+          <div id="dartReason" style="font-size:10px; color:var(--muted); margin-top:2px;"></div>
+        </div>
+        <button id="dartExecBtn" class="btn btn-muted" disabled style="white-space:nowrap">No Action</button>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+      <span id="dartStatus" class="hint"></span>
+      <div id="dartStaleHint" class="stale-hint" style="display:none"></div>
+      <div id="dartExecMsg" class="hint" style="margin-left:auto"></div>
+    </div>
 
-  <!-- BTC BB chart -->
-  <div style="display:flex; align-items:center; gap:12px; margin:16px 0 8px;">
-    <span class="section-label" style="margin:0">BTC / USDT — Bollinger Bands (20, 2σ)</span>
-    <div id="bbRange" style="display:flex; gap:4px;">
-      <button data-days="60" class="range-btn active">60D</button>
-      <button data-days="90" class="range-btn">90D</button>
-      <button data-days="180" class="range-btn">180D</button>
-      <button data-days="365" class="range-btn">1Y</button>
+    <div id="dartResult" style="display:none">
+      <!-- Regime -->
+      <div class="card-row col-3">
+        <div class="card"><div class="val" id="dartRegime">--</div><div class="lbl">Regime — 相場の状態</div></div>
+        <div class="card"><div class="val" id="dartFunda">--</div><div class="lbl">Funda Score — +強気 / -弱気</div></div>
+        <div class="card"><div class="val" id="dartSmaDev">--</div><div class="lbl" id="dartSmaDevLbl">SMA50 Dev — &gt;+2%:上昇 / ±2%:横ばい / &lt;-2%:下落</div></div>
+      </div>
+
+      <!-- Fundamentals -->
+      <div class="section-label">Fundamentals — スコアの根拠</div>
+      <div class="card-row col-3">
+        <div class="card"><div class="val-sm" id="fundaGold">--</div><div class="lbl">Gold — 上昇するとBTC弱気</div></div>
+        <div class="card"><div class="val-sm" id="fundaTnx">--</div><div class="lbl">US 10Y — 上昇は景気が強い</div></div>
+        <div class="card"><div class="val-sm" id="fundaFng">--</div><div class="lbl">Fear & Greed — 0恐怖〜100強欲</div></div>
+      </div>
+
+      <!-- Signals -->
+      <div class="section-label">Signals — 各戦略の判断</div>
+      <div id="dartSignals" class="sig-grid"></div>
+
+      <!-- Performance -->
+      <div class="section-label">Performance — 運用成績</div>
+      <div class="card-row col-4">
+        <div class="card"><div class="val" id="sumPnl">--</div><div class="lbl">P&L — 損益（円）</div></div>
+        <div class="card"><div class="val" id="sumTrades">--</div><div class="lbl">Trades — 取引回数</div></div>
+        <div class="card"><div class="val" id="sumWinRate">--</div><div class="lbl">Win Rate — 勝率</div></div>
+        <div class="card"><div class="val-sm" id="sumUpdated">--</div><div class="lbl">Last Update</div></div>
+      </div>
+      <div id="pnlChart" class="pnl-chart"></div>
     </div>
   </div>
-  <div id="bbChart" class="bb-chart"></div>
 
-  <!-- PnL chart -->
-  <div id="pnlChart" class="chart"></div>
+  <!-- ═══ RIGHT: BTC市場・チャート ═══ -->
+  <div>
+    <div class="section-label">Market — GMOコイン</div>
+    <div class="card-row col-4">
+      <div class="card" style="border-color:rgba(34,197,94,0.3)"><div class="val" id="dartPrice" style="color:var(--green)">--</div><div class="lbl">BTC Price (JPY)</div></div>
+      <div class="card"><div class="val-sm" id="dartBid" style="color:var(--red)">--</div><div class="lbl">Bid — 売れる値段</div></div>
+      <div class="card"><div class="val-sm" id="dartAsk" style="color:var(--green)">--</div><div class="lbl">Ask — 買える値段</div></div>
+      <div class="card"><div class="val-sm" id="dartEquity">--</div><div class="lbl">Equity — 口座残高 <span id="dartSpread" style="font-size:8px"></span></div></div>
+    </div>
 
-  <!-- Strategy cards -->
-  <div class="section-label">Strategies</div>
-  <div id="stratCards" class="strat-grid">
-    <div class="empty">Loading...</div>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+      <div class="section-label" style="flex:1; margin:0">BTC Daily — 黄:SMA20 / 青点線:SMA50 / 灰:BB帯</div>
+      <div id="bbRange" style="display:flex; gap:3px;">
+        <button data-days="60" class="range-btn active">60D</button>
+        <button data-days="90" class="range-btn">90D</button>
+        <button data-days="180" class="range-btn">180D</button>
+        <button data-days="365" class="range-btn">1Y</button>
+      </div>
+    </div>
+    <div id="bbChart" class="bb-chart"></div>
   </div>
 
-  <!-- Trade log -->
-  <div class="section-label">Trade Log</div>
-  <div id="tradeLog" class="trade-log">
-    <div class="empty">No trades yet</div>
+  <!-- ═══ BOTTOM: Strategies + Trade Log ═══ -->
+  <div class="col-full">
+    <div class="section-label">Strategies — 戦略ごとの成績</div>
+    <div id="stratCards" class="strat-grid"><div class="empty">Loading...</div></div>
   </div>
+  <div class="col-full">
+    <div class="section-label">Trade Log — 取引履歴</div>
+    <div id="tradeLog" class="trade-log"><div class="empty">No trades yet</div></div>
+  </div>
+
+</div>
 </div>
 
 <script>
 function fmt(n) { return Number(n).toLocaleString("ja-JP"); }
 function pnlColor(v) { return v >= 0 ? "var(--green)" : "var(--red)"; }
+function regimeColor(r) {
+  return r === "uptrend" ? "var(--green)" : r === "downtrend" ? "var(--red)" : "var(--yellow)";
+}
+
+// ── Performance ──
 
 function renderSummary(data) {
   var s = data.summary;
-  document.getElementById("sumPnl").style.color = pnlColor(s.totalPnl);
-  document.getElementById("sumPnl").textContent = (s.totalPnl >= 0 ? "+" : "") + fmt(Math.round(s.totalPnl)) + " JPY";
+  var el = document.getElementById("sumPnl");
+  el.style.color = pnlColor(s.totalPnl);
+  el.textContent = (s.totalPnl >= 0 ? "+" : "") + fmt(Math.round(s.totalPnl));
   document.getElementById("sumTrades").textContent = s.totalTrades;
   document.getElementById("sumWinRate").textContent = s.winRate.toFixed(1) + "%";
-
   var latest = "";
   data.strategies.forEach(function(st) {
     if (st.updatedAt && st.updatedAt > latest) latest = st.updatedAt;
@@ -169,11 +269,8 @@ function renderSummary(data) {
 
 function renderStrategies(data) {
   var el = document.getElementById("stratCards");
-  if (!data.strategies.length) {
-    el.innerHTML = '<div class="empty">No strategies running</div>';
-    return;
-  }
-
+  if (!data.strategies.length) { el.innerHTML = '<div class="empty">戦略なし</div>'; return; }
+  var sDesc = {"bb":"逆張り","ema_don":"順張り","bb_ls":"L/S"};
   el.innerHTML = data.strategies.map(function(st) {
     var nt = st.totalTrades || 0;
     var wr = nt > 0 ? (st.wins / nt * 100).toFixed(1) : "0.0";
@@ -182,248 +279,341 @@ function renderStrategies(data) {
                  : st.position === "short" ? "var(--red)" : "var(--muted)";
     var posLabel = st.position === "none" ? "No Position"
                  : st.position.toUpperCase() + " @ " + fmt(st.entryPrice);
-
     return '<div class="strat-card">' +
-      '<div class="name">' + (st.strategy || "?") + '</div>' +
-      '<div class="pos" style="color:' + posColor + '">' + posLabel + '</div>' +
+      '<div class="head"><span class="name">' + (st.strategy||"?") + ' <span style="font-weight:400;font-size:10px;color:var(--muted)">'+(sDesc[st.strategy]||"")+'</span></span></div>' +
+      '<div class="pos-label" style="color:' + posColor + '">' + posLabel + '</div>' +
       '<div class="metrics">' +
-        '<div class="metric"><div class="val" style="color:' + pnlColor(pnl) + '">' + (pnl >= 0 ? "+" : "") + fmt(Math.round(pnl)) + '</div><div class="lbl">P&L (JPY)</div></div>' +
+        '<div class="metric"><div class="val" style="color:' + pnlColor(pnl) + '">' + (pnl >= 0 ? "+" : "") + fmt(Math.round(pnl)) + '</div><div class="lbl">P&L</div></div>' +
         '<div class="metric"><div class="val">' + wr + '%</div><div class="lbl">Win Rate</div></div>' +
         '<div class="metric"><div class="val">' + nt + '</div><div class="lbl">Trades</div></div>' +
       '</div>' +
-      (st.stopPrice > 0 ? '<div style="font-size:12px;color:var(--muted)">SL: ' + fmt(st.stopPrice) + '</div>' : '') +
+      (st.stopPrice > 0 ? '<div style="font-size:10px;color:var(--muted)">Stop Loss: ' + fmt(st.stopPrice) + '円</div>' : '') +
     '</div>';
   }).join("");
 }
 
 function renderPnlChart(data) {
-  // Collect all trades with pnl across strategies, sort by date
   var points = [];
   data.strategies.forEach(function(st) {
     (st.trades || []).forEach(function(t) {
-      if (t.pnl !== undefined) {
-        points.push({ date: t.datetime, pnl: t.pnl, strategy: st.strategy });
-      }
+      if (t.pnl !== undefined) points.push({ date: t.datetime, pnl: t.pnl });
     });
   });
   points.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-
-  if (points.length === 0) {
-    document.getElementById("pnlChart").innerHTML = '<div class="empty">No P&L data yet</div>';
+  if (!points.length) {
+    document.getElementById("pnlChart").innerHTML = '<div class="empty">No P&L data</div>';
     return;
   }
-
-  // Cumulative PnL
-  var cumPnl = 0;
-  var dates = [];
-  var values = [];
-  points.forEach(function(p) {
-    cumPnl += p.pnl;
-    dates.push(p.date);
-    values.push(Math.round(cumPnl));
-  });
-
+  var cum = 0, dates = [], vals = [];
+  points.forEach(function(p) { cum += p.pnl; dates.push(p.date); vals.push(Math.round(cum)); });
   Plotly.newPlot("pnlChart", [{
-    x: dates, y: values,
-    type: "scatter", mode: "lines+markers",
+    x: dates, y: vals, type: "scatter", mode: "lines+markers",
     fill: "tozeroy",
-    line: { color: cumPnl >= 0 ? "#22c55e" : "#ef4444", width: 2 },
-    fillcolor: cumPnl >= 0 ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-    marker: { size: 6 },
+    line: { color: cum >= 0 ? "#22c55e" : "#ef4444", width: 2 },
+    fillcolor: cum >= 0 ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+    marker: { size: 4 },
   }], {
-    margin: { l: 60, r: 20, t: 10, b: 40 },
-    template: "plotly_dark",
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(20,20,30,1)",
-    yaxis: { title: "Cumulative P&L (JPY)" },
-    xaxis: { type: "date" },
-    hovermode: "x unified",
-    shapes: [{ type: "line", x0: dates[0], x1: dates[dates.length-1],
-               y0: 0, y1: 0, line: { color: "white", width: 0.5, dash: "dot" }}],
+    margin: { l: 50, r: 10, t: 6, b: 30 },
+    template: "plotly_dark", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(20,20,30,1)",
+    yaxis: { title: "P&L", titlefont: { size: 10 } },
+    xaxis: { type: "date" }, hovermode: "x unified",
+    shapes: [{ type: "line", x0: dates[0], x1: dates[dates.length-1], y0: 0, y1: 0,
+               line: { color: "white", width: 0.5, dash: "dot" }}],
   }, { responsive: true });
 }
 
 function renderTradeLog(data) {
   var el = document.getElementById("tradeLog");
-  var allTrades = [];
+  var all = [];
   data.strategies.forEach(function(st) {
-    (st.trades || []).forEach(function(t) {
-      t._strategy = st.strategy;
-      allTrades.push(t);
-    });
+    (st.trades || []).forEach(function(t) { t._s = st.strategy; all.push(t); });
   });
-  allTrades.sort(function(a, b) { return a.datetime > b.datetime ? -1 : 1; });
-
-  if (allTrades.length === 0) {
-    el.innerHTML = '<div class="empty">No trades yet. Waiting for signals...</div>';
-    return;
-  }
-
-  el.innerHTML = allTrades.slice(0, 50).map(function(t) {
-    var typeClass = t.type.replace("_", "_");
+  all.sort(function(a, b) { return a.datetime > b.datetime ? -1 : 1; });
+  if (!all.length) { el.innerHTML = '<div class="empty">Waiting for signals...</div>'; return; }
+  el.innerHTML = all.slice(0, 50).map(function(t) {
     var pnlHtml = "";
     if (t.pnl !== undefined) {
-      var c = t.pnl >= 0 ? "var(--green)" : "var(--red)";
-      pnlHtml = '<span class="pnl" style="color:' + c + '">' + (t.pnl >= 0 ? "+" : "") + fmt(Math.round(t.pnl)) + '</span>';
+      pnlHtml = '<span class="pnl" style="color:' + pnlColor(t.pnl) + '">' +
+        (t.pnl >= 0 ? "+" : "") + fmt(Math.round(t.pnl)) + '</span>';
     }
     var dry = t.dryRun ? ' <span style="color:var(--yellow)">[DRY]</span>' : '';
+    var typeName = t.type.toUpperCase();
     return '<div class="trade-row">' +
       '<span class="dt">' + new Date(t.datetime).toLocaleString("ja-JP") + '</span>' +
-      '<span class="type ' + typeClass + '">' + t.type.toUpperCase() + '</span>' +
-      '<span>[' + t._strategy + '] ' + fmt(t.price) + ' x ' + (t.size || "") + dry + '</span>' +
-      pnlHtml +
-    '</div>';
+      '<span class="type ' + t.type + '">' + typeName + '</span>' +
+      '<span>' + t._s + ' ' + fmt(t.price) + '円 x' + (t.size || "") + dry + '</span>' +
+      pnlHtml + '</div>';
   }).join("");
 }
 
-var bbDisplayDays = 60;
-
-async function loadBbChart() {
-  try {
-    var fetchLimit = bbDisplayDays + 50; // BB/SMA計算用に余分に取得
-    var resp = await fetch(
-      "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=" + fetchLimit
-    );
-    var raw = await resp.json();
-
-    var dates = [], opens = [], highs = [], lows = [], closes = [];
-    raw.forEach(function(k) {
-      dates.push(new Date(k[0]).toISOString().slice(0, 10));
-      opens.push(parseFloat(k[1]));
-      highs.push(parseFloat(k[2]));
-      lows.push(parseFloat(k[3]));
-      closes.push(parseFloat(k[4]));
-    });
-
-    // SMA helper
-    function sma(arr, period) {
-      var out = [];
-      for (var i = 0; i < arr.length; i++) {
-        if (i < period - 1) { out.push(null); continue; }
-        var sum = 0;
-        for (var j = i - period + 1; j <= i; j++) sum += arr[j];
-        out.push(sum / period);
-      }
-      return out;
-    }
-
-    // Rolling std
-    function rollingStd(arr, mean, period) {
-      var out = [];
-      for (var i = 0; i < arr.length; i++) {
-        if (mean[i] === null) { out.push(null); continue; }
-        var s = 0;
-        for (var j = i - period + 1; j <= i; j++) s += Math.pow(arr[j] - mean[i], 2);
-        out.push(Math.sqrt(s / period));
-      }
-      return out;
-    }
-
-    var sma20 = sma(closes, 20);
-    var std20 = rollingStd(closes, sma20, 20);
-    var upper = sma20.map(function(m, i) { return m !== null ? m + 2 * std20[i] : null; });
-    var lower = sma20.map(function(m, i) { return m !== null ? m - 2 * std20[i] : null; });
-    var sma50 = sma(closes, 50);
-
-    var n = bbDisplayDays;
-    var sl = function(a) { return a.slice(-n); };
-
-    var traces = [
-      {
-        x: sl(dates), open: sl(opens), high: sl(highs), low: sl(lows), close: sl(closes),
-        type: "candlestick", name: "BTC",
-        increasing: { line: { color: "#22c55e" } },
-        decreasing: { line: { color: "#ef4444" } },
-      },
-      {
-        x: sl(dates), y: sl(sma20), type: "scatter", mode: "lines",
-        name: "SMA20", line: { color: "#eab308", width: 1.5 },
-      },
-      {
-        x: sl(dates), y: sl(upper), type: "scatter", mode: "lines",
-        name: "Upper (2σ)", line: { color: "rgba(139,143,163,0.6)", width: 1, dash: "dot" },
-      },
-      {
-        x: sl(dates), y: sl(lower), type: "scatter", mode: "lines",
-        name: "Lower (2σ)", line: { color: "rgba(139,143,163,0.6)", width: 1, dash: "dot" },
-        fill: "tonexty", fillcolor: "rgba(139,143,163,0.05)",
-      },
-      {
-        x: sl(dates), y: sl(sma50), type: "scatter", mode: "lines",
-        name: "SMA50 (regime)", line: { color: "#3b82f6", width: 1.5, dash: "dash" },
-      },
-    ];
-
-    Plotly.newPlot("bbChart", traces, {
-      margin: { l: 60, r: 20, t: 10, b: 40 },
-      template: "plotly_dark",
-      paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor: "rgba(20,20,30,1)",
-      xaxis: { type: "date", rangeslider: { visible: false } },
-      yaxis: { title: "USD" },
-      hovermode: "x unified",
-      legend: { orientation: "h", y: 1.02, x: 0.5, xanchor: "center", font: { size: 11 } },
-    }, { responsive: true });
-
-  } catch (e) {
-    document.getElementById("bbChart").innerHTML =
-      '<div class="empty">Chart error: ' + e.message + '</div>';
-  }
-}
-
-async function loadData() {
-  try {
-    var resp = await fetch("/api/trader");
-    var data = await resp.json();
-    renderSummary(data);
-    renderStrategies(data);
-    renderPnlChart(data);
-    renderTradeLog(data);
-  } catch (e) {
-    document.getElementById("stratCards").innerHTML =
-      '<div class="empty">Error: ' + e.message + '</div>';
-  }
-}
-
-document.querySelectorAll(".range-btn").forEach(function(btn) {
-  btn.addEventListener("click", function() {
-    document.querySelectorAll(".range-btn").forEach(function(b) { b.classList.remove("active"); });
-    btn.classList.add("active");
-    bbDisplayDays = parseInt(btn.dataset.days);
-    loadBbChart();
-  });
-});
+// ── Fundamentals (loaded from /api/trader/funda) ──
 
 async function loadFunda() {
   try {
     var resp = await fetch("/api/trader/funda");
     var d = await resp.json();
-    if (d.error) { return; }
-    var score = d.fundaScore;
-    var el = document.getElementById("fundaScore");
-    el.textContent = (score >= 0 ? "+" : "") + score.toFixed(2);
-    el.style.color = score > 0.3 ? "var(--green)" : score < -0.3 ? "var(--red)" : "var(--muted)";
-
+    if (d.error) return;
     var g = d.indicators.gold;
     document.getElementById("fundaGold").textContent = g.price ? "$" + fmt(Math.round(g.price)) : "--";
-
     var t = d.indicators.tnx;
     document.getElementById("fundaTnx").textContent = t.value ? t.value.toFixed(2) + "%" : "--";
-
     var f = d.indicators.fng;
     var fEl = document.getElementById("fundaFng");
     fEl.textContent = f.value + " (" + f.label + ")";
     fEl.style.color = f.value > 60 ? "var(--green)" : f.value < 30 ? "var(--red)" : "var(--muted)";
-  } catch (e) { console.log("funda error:", e); }
+  } catch (e) { console.log("funda:", e); }
 }
 
-loadBbChart();
-loadData();
-loadFunda();
-setInterval(loadBbChart, 300000); // 5分ごと
-setInterval(loadData, 30000);
-setInterval(loadFunda, 300000);  // 5分ごと
-</script>
+// ── BB Chart ──
 
+var bbDays = 60;
+
+async function loadBbChart() {
+  try {
+    var resp = await fetch(
+      "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=" + (bbDays + 50)
+    );
+    var raw = await resp.json();
+    var dt=[],op=[],hi=[],lo=[],cl=[];
+    raw.forEach(function(k) {
+      dt.push(new Date(k[0]).toISOString().slice(0,10));
+      op.push(+k[1]);hi.push(+k[2]);lo.push(+k[3]);cl.push(+k[4]);
+    });
+    function sma(a,p){return a.map(function(_,i){if(i<p-1)return null;var s=0;for(var j=i-p+1;j<=i;j++)s+=a[j];return s/p})}
+    function rstd(a,m,p){return a.map(function(_,i){if(m[i]===null)return null;var s=0;for(var j=i-p+1;j<=i;j++)s+=Math.pow(a[j]-m[i],2);return Math.sqrt(s/p)})}
+    var s20=sma(cl,20),sd=rstd(cl,s20,20);
+    var up=s20.map(function(m,i){return m!==null?m+2*sd[i]:null});
+    var dn=s20.map(function(m,i){return m!==null?m-2*sd[i]:null});
+    var s50=sma(cl,50);
+    var n=bbDays,sl=function(a){return a.slice(-n)};
+    Plotly.newPlot("bbChart",[
+      {x:sl(dt),open:sl(op),high:sl(hi),low:sl(lo),close:sl(cl),type:"candlestick",name:"BTC",
+       increasing:{line:{color:"#22c55e"}},decreasing:{line:{color:"#ef4444"}}},
+      {x:sl(dt),y:sl(s20),type:"scatter",mode:"lines",name:"SMA20",line:{color:"#eab308",width:1.5}},
+      {x:sl(dt),y:sl(up),type:"scatter",mode:"lines",name:"+2\u03c3",line:{color:"rgba(139,143,163,0.6)",width:1,dash:"dot"}},
+      {x:sl(dt),y:sl(dn),type:"scatter",mode:"lines",name:"-2\u03c3",line:{color:"rgba(139,143,163,0.6)",width:1,dash:"dot"},
+       fill:"tonexty",fillcolor:"rgba(139,143,163,0.05)"},
+      {x:sl(dt),y:sl(s50),type:"scatter",mode:"lines",name:"SMA50",line:{color:"#3b82f6",width:1.5,dash:"dash"}},
+    ],{
+      margin:{l:50,r:10,t:6,b:30},
+      template:"plotly_dark",paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(20,20,30,1)",
+      xaxis:{type:"date",rangeslider:{visible:false}},yaxis:{title:"USD",titlefont:{size:10}},
+      hovermode:"x unified",
+      legend:{orientation:"h",y:1.02,x:0.5,xanchor:"center",font:{size:10}},
+    },{responsive:true});
+  } catch(e) {
+    document.getElementById("bbChart").innerHTML='<div class="empty">Chart error: '+e.message+'</div>';
+  }
+}
+
+document.querySelectorAll(".range-btn").forEach(function(btn) {
+  btn.addEventListener("click",function(){
+    document.querySelectorAll(".range-btn").forEach(function(b){b.classList.remove("active")});
+    btn.classList.add("active"); bbDays=parseInt(btn.dataset.days); loadBbChart();
+  });
+});
+
+// ── DART Check ──
+
+async function dartCheck() {
+  var btn=document.getElementById("dartCheckBtn"),msg=document.getElementById("dartStatus");
+  btn.disabled=true; btn.textContent="Checking...";
+  msg.textContent="GMO APIから取得中..."; msg.style.color="var(--muted)";
+  document.getElementById("dartExecMsg").textContent="";
+  try {
+    var resp=await fetch("/api/dart/check");
+    var d=await resp.json();
+    if(d.error) throw new Error(d.error);
+    dartRender(d);
+    showStaleHint(d.timestamp);
+    msg.textContent="たった今更新";
+  } catch(e) {
+    msg.textContent="Error: "+e.message; msg.style.color="var(--red)";
+  } finally { btn.disabled=false; btn.textContent="Check Now"; }
+}
+
+function dartRender(d) {
+  document.getElementById("dartResult").style.display="block";
+
+  // Market (right side)
+  document.getElementById("dartPrice").textContent=fmt(Math.round(d.price));
+  document.getElementById("dartBid").textContent=fmt(Math.round(d.bid));
+  document.getElementById("dartAsk").textContent=fmt(Math.round(d.ask));
+  document.getElementById("dartEquity").textContent=fmt(Math.round(d.totalEquity));
+  var spread=d.ask-d.bid;
+  document.getElementById("dartSpread").textContent="Spread: "+fmt(Math.round(spread))+"円";
+
+  // Analysis (left side)
+  var regEl=document.getElementById("dartRegime");
+  regEl.textContent=d.regime.toUpperCase(); regEl.style.color=regimeColor(d.regime);
+
+  var fs=d.fundaScore, fEl=document.getElementById("dartFunda");
+  fEl.textContent=fs!==null?(fs>=0?"+":"")+fs.toFixed(2):"N/A";
+  fEl.style.color=fs>0.3?"var(--green)":fs<-0.3?"var(--red)":"var(--muted)";
+  if(d.fundaAdj) fEl.textContent+=" ("+d.fundaAdj+")";
+
+  var sd=d.sma50Dev;
+  var sdEl=document.getElementById("dartSmaDev");
+  sdEl.textContent=sd!==null?(sd>=0?"+":"")+sd.toFixed(1)+"%":"N/A";
+  sdEl.style.color=sd>2?"var(--green)":sd<-2?"var(--red)":"var(--yellow)";
+  // ラベルに判定ラインを表示
+  var sdLbl=document.getElementById("dartSmaDevLbl");
+  if(sd!==null) {
+    var bar="<span style='color:var(--green)'>▏+2%</span> ";
+    if(sd>2) sdLbl.innerHTML="SMA50 Dev — 上昇ゾーン（+2%超）";
+    else if(sd<-2) sdLbl.innerHTML="SMA50 Dev — 下落ゾーン（-2%未満）";
+    else sdLbl.innerHTML="SMA50 Dev — 横ばいゾーン（±2%以内）";
+  }
+
+  // Signals (3-col)
+  var html="",actions=[];
+  var sigDesc={"bb":"逆張り","ema_don":"順張り","bb_ls":"L/S"};
+  var posDesc={"none":"—","long":"Long","short":"Short"};
+  d.strategies.forEach(function(s) {
+    var ac=s.action;
+    var acName=ac;
+    var acColor=ac==="HOLD"?"var(--muted)":ac.includes("BUY")?"var(--green)":"var(--red)";
+    var acBg=ac==="HOLD"?"rgba(139,143,163,0.1)"
+      :ac.includes("BUY")?"rgba(34,197,94,0.15)":"rgba(239,68,68,0.15)";
+    html+='<div class="strat-card">'+
+      '<div class="head">'+
+        '<span class="name">'+s.name+' <span style="font-weight:400;font-size:10px;color:var(--muted)">'+(sigDesc[s.name]||"")+'</span></span>'+
+        '<span class="badge" style="background:'+acBg+';color:'+acColor+'">'+acName+'</span>'+
+      '</div>'+
+      '<div class="reason">'+s.reason+'</div>'+
+      '<div class="meta">'+
+        '<span>Weight: '+s.weight+'%</span>'+
+        '<span>Pos: '+(posDesc[s.position]||s.position)+'</span>'+
+      '</div>'+
+      (s.orderSize>0?'<div class="order">注文: '+s.orderSize+' BTC ('+fmt(Math.round(s.orderSize*d.price))+'円)</div>':'')+
+    '</div>';
+    if(ac!=="HOLD") actions.push(s);
+  });
+  document.getElementById("dartSignals").innerHTML=html;
+
+  // Action box
+  var box=document.getElementById("dartAction");
+  var rec=document.getElementById("dartRec");
+  var btn=document.getElementById("dartExecBtn");
+  var reasonEl=document.getElementById("dartReason");
+  // 理由文を整理: アクションがある戦略の理由だけ表示、全HOLDなら1文にまとめる
+  var actionStrats=d.strategies.filter(function(s){return s.action!=="HOLD"});
+  var reasons;
+  if(actionStrats.length>0) {
+    reasons=actionStrats.map(function(s){return s.name+": "+s.reason}).join(" / ");
+  } else {
+    // 全HOLD — 理由が全部同じなら1つだけ表示
+    var uniqueReasons=[];
+    d.strategies.forEach(function(s){
+      var r=s.reason.replace(/.*ポジション: .*/,"");
+      if(r&&uniqueReasons.indexOf(r)<0) uniqueReasons.push(r);
+    });
+    if(uniqueReasons.length>0) {
+      reasons=uniqueReasons.join(" / ");
+    } else {
+      reasons="全戦略シグナルなし — 売買条件に達していません";
+    }
+  }
+
+  if(actions.length>0) {
+    box.className="action-box active";
+    var summary=actions.map(function(a){return a.name+": "+a.action}).join(" / ");
+    rec.textContent=summary;
+    var isBuy=actions.some(function(a){return a.action.includes("BUY")});
+    rec.style.color=isBuy?"var(--green)":"var(--red)";
+    reasonEl.textContent=reasons;
+    btn.className="btn "+(isBuy?"btn-green":"btn-red");
+    btn.textContent="Execute"; btn.disabled=false; btn.onclick=dartExecute;
+  } else {
+    box.className="action-box";
+    rec.textContent="HOLD"; rec.style.color="var(--muted)";
+    reasonEl.textContent=reasons;
+    btn.className="btn btn-muted";
+    btn.textContent="No Action"; btn.disabled=true; btn.onclick=null;
+  }
+  updateModeUI(d.dryRun);
+}
+
+async function dartExecute() {
+  if(!confirm("DART注文を実行しますか？")) return;
+  var btn=document.getElementById("dartExecBtn"),msg=document.getElementById("dartExecMsg");
+  btn.disabled=true; btn.textContent="Executing...";
+  try {
+    var resp=await fetch("/api/dart/execute",{method:"POST"});
+    var data=await resp.json();
+    if(data.error) throw new Error(data.error);
+    var dry=data.dryRun?" [DRY]":"";
+    var det=data.results.map(function(r){return r.action+": "+(r.detail||"")}).join(" | ");
+    msg.textContent="Done"+dry+" — "+det; msg.style.color="var(--green)";
+    setTimeout(function(){dartCheck();loadData()},2000);
+  } catch(e) {
+    msg.textContent="Error: "+e.message; msg.style.color="var(--red)";
+  } finally { btn.disabled=false; btn.textContent="Execute"; }
+}
+
+// ── Mode toggle ──
+
+async function loadMode() {
+  try { var r=await fetch("/api/dart/mode"); var d=await r.json(); updateModeUI(d.dryRun); } catch(e) {}
+}
+function updateModeUI(isDry) {
+  document.getElementById("modeDry").className=isDry?"active-dry":"";
+  document.getElementById("modeLive").className=isDry?"":"active-live";
+  document.getElementById("modeLabel").textContent=isDry?"config.yaml dry_run: true":"config.yaml dry_run: false";
+  document.getElementById("modeLabel").style.color=isDry?"var(--muted)":"var(--red)";
+}
+async function toggleMode(toDry) {
+  if(!toDry) {
+    if(!confirm("LIVEモードに切り替えます。\n実際の注文が実行されます。よろしいですか？")) return;
+    if(!confirm("本当にLIVEモードに切り替えますか？（最終確認）")) return;
+  }
+  try {
+    var r=await fetch("/api/dart/mode",{method:"POST"}); var d=await r.json();
+    if(d.error){alert("Error: "+d.error);return;} updateModeUI(d.dryRun);
+  } catch(e){alert("Error: "+e.message)}
+}
+
+// ── Stale hint ──
+
+function timeAgo(iso) {
+  var d=(Date.now()-new Date(iso).getTime())/1000;
+  if(d<60) return Math.floor(d)+"秒前";
+  if(d<3600) return Math.floor(d/60)+"分前";
+  if(d<86400) return Math.floor(d/3600)+"時間前";
+  return Math.floor(d/86400)+"日前";
+}
+function showStaleHint(ts) {
+  var el=document.getElementById("dartStaleHint");
+  el.style.display="block";
+  el.textContent="前回チェック: "+new Date(ts).toLocaleString("ja-JP")+" ("+timeAgo(ts)+")";
+}
+
+// ── Load last check on page open ──
+
+async function loadLastDart() {
+  try {
+    var r=await fetch("/api/dart/last"); var d=await r.json();
+    if(d.empty) return;
+    dartRender(d); showStaleHint(d.timestamp);
+    document.getElementById("dartStatus").textContent="";
+  } catch(e){}
+}
+
+// ── Load ──
+
+async function loadData() {
+  try {
+    var r=await fetch("/api/trader"); var d=await r.json();
+    renderSummary(d); renderStrategies(d); renderPnlChart(d); renderTradeLog(d);
+  } catch(e) {
+    document.getElementById("stratCards").innerHTML='<div class="empty">Error: '+e.message+'</div>';
+  }
+}
+
+loadBbChart(); loadData(); loadFunda(); loadMode(); loadLastDart();
+setInterval(loadBbChart,300000);
+setInterval(loadData,30000);
+setInterval(loadFunda,300000);
+</script>
 </body>
 </html>

@@ -517,3 +517,196 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
           f"pnl:{state.get('totalPnl',0):>+10,.0f}  wr:{wr:.0f}% ({nt})")
 
   return results
+
+
+def checkDart(config: dict) -> dict:
+  """DART分析のみ実行（注文は出さない）。手動チェック用"""
+  traderCfg = config.get("trader", {})
+  symbol = traderCfg.get("symbol", "BTC")
+  strategiesCfg = traderCfg.get("strategies", [])
+
+  exchange = GmoExchange()
+  now = datetime.now(JST)
+
+  # 価格取得
+  ticker = exchange.getTicker(symbol)
+  price = ticker["last"]
+
+  # 残高（実残高を取得、失敗時はdry_run_balance）
+  try:
+    balance = exchange.getBalance()
+    balJpy = balance.get("JPY", {}).get("available", 0)
+    balBtc = balance.get("BTC", {}).get("available", 0)
+    totalEquity = balJpy + balBtc * price
+    availableJpy = balJpy
+  except Exception:
+    dryBalance = traderCfg.get("dry_run_balance", 100_000)
+    totalEquity = dryBalance
+    availableJpy = dryBalance
+    balJpy = dryBalance
+    balBtc = 0
+
+  # レジーム判定
+  dynamicCfg = traderCfg.get("dynamic_weight", {})
+  regime = "range"
+  sma50Dev = None
+  trendMa = None
+  fundaScore = None
+  fundaAdj = None
+
+  if dynamicCfg.get("enabled", False):
+    trendMaPeriod = dynamicCfg.get("trend_ma_period", 50)
+    threshold = dynamicCfg.get("threshold", 2.0)
+    try:
+      import strategies
+      from strategies.registry import getStrategy
+      s = getStrategy("bb")
+      data = s.fetchData(symbol=f"{symbol}USDT", interval="1d", years=1)
+      if len(data) >= trendMaPeriod:
+        trendMa = float(data["close"].rolling(trendMaPeriod).mean().iloc[-1])
+        # レジーム判定・乖離率はBinance USD同士で計算
+        latestClose = float(data["close"].iloc[-1])
+        regime = detectRegime(latestClose, trendMa, threshold)
+        sma50Dev = (latestClose - trendMa) / trendMa * 100
+    except Exception:
+      pass
+
+    regimeWeights = dynamicCfg.get("regime_weights", DEFAULT_REGIME_WEIGHTS)
+
+    # ファンダスコア
+    fundaCfg = dynamicCfg.get("funda", {})
+    if fundaCfg.get("enabled", False):
+      try:
+        from signals.collectors.macro_collector import (
+          get_gold_history, get_tnx_history, get_fng_history,
+        )
+        from signals.scorer import calcFundaScore
+        goldHist = get_gold_history(days=fundaCfg.get("gold_days", 80))
+        tnxHist = get_tnx_history(days=fundaCfg.get("tnx_days", 35))
+        fngHist = get_fng_history(days=fundaCfg.get("fng_days", 40))
+        fundaScore = calcFundaScore(goldHist, tnxHist, fngHist)
+        origRegime = regime
+        regime, fundaWeightOverride = adjustRegimeByFunda(
+          regime, sma50Dev, fundaScore,
+          upZone=fundaCfg.get("up_zone", 5.0),
+          downZone=fundaCfg.get("down_zone", -10.0),
+          fundaThr=fundaCfg.get("threshold", 0.3),
+          boostThr=fundaCfg.get("boost_threshold", 0.5),
+        )
+        if regime != origRegime:
+          fundaAdj = f"{origRegime}->{regime}"
+        elif fundaWeightOverride:
+          fundaAdj = "BOOST"
+      except Exception:
+        pass
+  else:
+    regimeWeights = None
+
+  # 各戦略のシグナル分析
+  strategyResults = []
+  for sCfg in strategiesCfg:
+    sName = sCfg["name"]
+    mode = sCfg.get("mode", "long")
+    interval = sCfg.get("interval", "1d")
+    params = sCfg.get("params", {})
+
+    # 動的weight
+    if regimeWeights:
+      if fundaAdj == "BOOST" and 'fundaWeightOverride' in dir():
+        weight = fundaWeightOverride.get(sName, 0)
+      else:
+        weight = _getRegimeWeight(sName, regime, regimeWeights)
+    else:
+      weight = sCfg.get("weight", 50)
+
+    state = _loadState(sName)
+
+    # シグナル生成
+    signal = 0
+    signalStr = "?"
+    try:
+      import strategies
+      from strategies.registry import getStrategy
+      strategy = getStrategy(sName)
+      data = strategy.fetchData(symbol=f"{symbol}USDT", interval=interval, years=1)
+      data = data.tail(200)
+      dfS = strategy.generateSignals(data, **params)
+      signal = int(dfS["signal"].iloc[-1])
+      signalStr = {1: "BUY", -1: "SELL", 0: "HOLD"}.get(signal, "?")
+    except Exception as e:
+      signalStr = f"ERROR: {e}"
+
+    # 推奨アクション判定
+    action = "HOLD"
+    reason = ""
+    posJa = {"none": "なし", "long": "買い保有中", "short": "空売り中"}
+    posStr = posJa.get(state["position"], state["position"])
+    if signal == 1 and state["position"] != "long":
+      if weight > 0:
+        action = "BUY"
+        reason = f"BUYシグナル発生 → 買いエントリー（配分{weight}%）"
+        if state["position"] == "short":
+          reason = f"BUYシグナル → 空売り決済＋買いエントリー（配分{weight}%）"
+      else:
+        action = "HOLD"
+        reason = f"BUYシグナルだが配分0%（{regime}では出番なし）"
+    elif signal == -1:
+      if state["position"] == "long":
+        action = "SELL"
+        reason = "SELLシグナル発生 → 買いポジション決済"
+      if mode == "long_short" and weight > 0:
+        if state["position"] != "short":
+          action = "SHORT" if state["position"] != "long" else "SELL+SHORT"
+          reason += f" → 空売りエントリー（配分{weight}%）" if reason else f"SELLシグナル → 空売りエントリー（配分{weight}%）"
+      elif signal == -1 and state["position"] != "long":
+        reason = reason or f"SELLシグナルだが買いポジションなし"
+    else:
+      if signal == 0:
+        reason = "シグナルなし（売買条件未達）"
+      else:
+        reason = f"既に{posStr}"
+
+    allocatedCapital = availableJpy * weight / 100
+    riskCfg = traderCfg.get("risk", {})
+    riskMgr = RiskManager({**riskCfg, "capital_ratio": 0.9})
+    riskMgr.setDailyStart(totalEquity)
+    orderSize = 0
+    if action in ("BUY", "SHORT", "SELL+SHORT") and weight > 0:
+      ok, size, msg = riskMgr.checkBeforeOrder(allocatedCapital, price, totalEquity)
+      if ok:
+        orderSize = size
+      else:
+        reason += f" ({msg})"
+        action = "HOLD"
+
+    strategyResults.append({
+      "name": sName,
+      "mode": mode,
+      "weight": weight,
+      "signal": signalStr,
+      "action": action,
+      "reason": reason,
+      "position": state["position"],
+      "entryPrice": state.get("entryPrice", 0),
+      "orderSize": orderSize,
+      "pnl": state.get("totalPnl", 0),
+      "trades": state.get("totalTrades", 0),
+    })
+
+  return {
+    "timestamp": now.isoformat(),
+    "symbol": symbol,
+    "price": price,
+    "bid": ticker["bid"],
+    "ask": ticker["ask"],
+    "balanceJpy": balJpy,
+    "balanceBtc": balBtc,
+    "totalEquity": totalEquity,
+    "regime": regime,
+    "sma50": trendMa,
+    "sma50Dev": round(sma50Dev, 2) if sma50Dev else None,
+    "fundaScore": round(fundaScore, 3) if fundaScore else None,
+    "fundaAdj": fundaAdj,
+    "strategies": strategyResults,
+    "dryRun": traderCfg.get("dry_run", True),
+  }

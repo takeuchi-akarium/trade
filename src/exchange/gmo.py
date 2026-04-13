@@ -52,12 +52,12 @@ class GmoExchange(Exchange):
 
   def _privateGet(self, path: str, params: dict = None) -> dict:
     self._checkApiKey()
+    # 署名はパス部分のみ（クエリパラメータを含めない）
+    headers = self._headers("GET", path)
     url = PRIVATE_URL + path
     if params:
       qs = "&".join(f"{k}={v}" for k, v in params.items())
-      path = f"{path}?{qs}"
-      url = PRIVATE_URL + path
-    headers = self._headers("GET", path)
+      url = f"{url}?{qs}"
     resp = requests.get(url, headers=headers, timeout=10)
     resp.raise_for_status()
     data = resp.json()

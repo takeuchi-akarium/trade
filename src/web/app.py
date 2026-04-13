@@ -404,10 +404,87 @@ def apiTradeJournalScreenshot(filename):
   return send_from_directory(screenshotDir, filename)
 
 
+# ── DART 手動チェック ──
+
+DART_LAST_CHECK = DATA_DIR / "trader" / "last_dart_check.json"
+
+
+@app.route("/api/dart/last")
+def apiDartLast():
+  """前回のチェック結果を返す"""
+  data = loadJson(DART_LAST_CHECK)
+  if data is None:
+    return jsonify({"empty": True})
+  return jsonify(data)
+
+
+@app.route("/api/dart/check")
+def apiDartCheck():
+  """DART分析のみ実行（注文は出さない）。結果をファイルに保存"""
+  try:
+    from common.config_loader import load_config
+    from trader.engine import checkDart
+    config = load_config()
+    result = checkDart(config)
+    # 保存
+    DART_LAST_CHECK.parent.mkdir(parents=True, exist_ok=True)
+    DART_LAST_CHECK.write_text(
+      json.dumps(result, indent=2, ensure_ascii=False, default=str),
+      encoding="utf-8",
+    )
+    return jsonify(result)
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dart/execute", methods=["POST"])
+def apiDartExecute():
+  """DART注文を実行"""
+  try:
+    from common.config_loader import load_config
+    from trader.engine import runCycle
+    config = load_config()
+    dryRun = config.get("trader", {}).get("dry_run", True)
+    results = runCycle(config, dryRun=dryRun)
+    return jsonify({"results": results, "dryRun": dryRun})
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dart/mode")
+def apiDartMode():
+  """現在のdry_runモードを返す"""
+  from common.config_loader import load_config
+  config = load_config()
+  dryRun = config.get("trader", {}).get("dry_run", True)
+  return jsonify({"dryRun": dryRun})
+
+
+@app.route("/api/dart/mode", methods=["POST"])
+def apiDartModeToggle():
+  """dry_runモードを切り替える（config.yamlを書き換え）"""
+  import re
+  configPath = ROOT / "config.yaml"
+  text = configPath.read_text(encoding="utf-8")
+
+  # 現在値を検出
+  match = re.search(r"^(\s*dry_run:\s*)(true|false)", text, re.MULTILINE)
+  if not match:
+    return jsonify({"error": "dry_run not found in config.yaml"}), 500
+
+  current = match.group(2) == "true"
+  newVal = not current
+  newText = text[:match.start(2)] + str(newVal).lower() + text[match.end(2):]
+  configPath.write_text(newText, encoding="utf-8")
+
+  return jsonify({"dryRun": newVal})
+
+
 if __name__ == "__main__":
   print("Dashboard:    http://localhost:5000")
   print("Simulations:  http://localhost:5000/simulations")
   print("Trader:       http://localhost:5000/trader")
+  print("DART:         http://localhost:5000/trader (Manual Control)")
   print("Gap Scan:     http://localhost:5000/gap-scan")
   print("Journal:      http://localhost:5000/trade-journal")
   app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", port=5000)
