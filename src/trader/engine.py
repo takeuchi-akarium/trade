@@ -1,7 +1,20 @@
 """
-自動売買エンジン（複数戦略同時稼働）
+DART — Dynamic Adaptive Regime Trading
 
-各戦略が独立して判定・発注。資金はweight比率で配分。
+BTC自動売買の種戦略。相場レジーム（上昇/レンジ/下落）を判定し、
+複数サブ戦略（BB逆張り・EMA+ドンチャン順張り・BB L/S）の
+資金配分を動的に切り替える。ファンダメンタルズ（ゴールド/10年債/FnG）
+で Early Transition（早期退避）と Boost（攻勢）を補正。
+
+サブ戦略:
+  bb      — ボリンジャーバンド逆張り（押し目買い）
+  ema_don — EMAクロス + ドンチャンチャネル補完（順張り）
+  bb_ls   — ボリンジャーバンド L/S（レンジ相場用、空売り含む）
+
+レジーム別デフォルト配分:
+  uptrend   → ema_don 70% + bb 30%
+  range     → bb 70% + ema_don 10% + bb_ls 20%
+  downtrend → 全退避（0%）
 """
 
 import json
