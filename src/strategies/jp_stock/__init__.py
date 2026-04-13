@@ -280,6 +280,201 @@ class MomentumRankingStrategy(Strategy):
     )
 
 
+class GapFillStrategy(Strategy):
+  """ギャップフィル（窓埋め）逆張り"""
+
+  name = "gap_fill"
+  description = "ギャップフィル逆張り（日本株）"
+  category = "short_term"
+  defaultParams = {
+    "capital": 50_000,
+    "gapThreshold": 1.5,
+    "stopLossPct": 2.0,
+    "maxHoldDays": 3,
+    "slippage": 0.1,
+    "exitAtClose": True,
+    "volFilter": 0.8,
+    "useMarketFilter": False,
+  }
+
+  def fetchData(self, symbol: str, interval: str = "1d", **kwargs) -> pd.DataFrame:
+    from strategies.jp_stock.data import fetchOhlcv
+    years = kwargs.get("years", 3)
+    return fetchOhlcv(symbol, interval, years)
+
+  def generateSignals(self, data: pd.DataFrame, **params) -> pd.DataFrame:
+    """シグナル列を追加: +1=ギャップダウンでエントリー条件成立"""
+    import numpy as np
+    p = self.getParams(**params)
+    df = data.copy()
+    df["signal"] = 0
+
+    closes = df["close"].values
+    opens = df["open"].values
+    volumes = df["volume"].values
+
+    for i in range(25, len(df)):
+      prevClose = closes[i - 1]
+      if prevClose <= 0:
+        continue
+      gapPct = (opens[i] - prevClose) / prevClose * 100
+
+      if gapPct <= -p["gapThreshold"]:
+        avgVol20 = np.mean(volumes[max(0, i - 21):i - 1]) if i > 1 else 0
+        if avgVol20 > 0 and volumes[i - 1] >= avgVol20 * p["volFilter"]:
+          df.iloc[i, df.columns.get_loc("signal")] = 1
+
+    return df
+
+  def _fetchMarketDf(self, p: dict) -> pd.DataFrame | None:
+    if not p.get("useMarketFilter", False):
+      return None
+    try:
+      from strategies.jp_stock.data import fetchOhlcv
+      return fetchOhlcv("^N225", interval="1d", years=3)
+    except Exception:
+      return None
+
+  def backtest(self, data: pd.DataFrame, **params) -> BacktestResult:
+    from strategies.jp_stock.backtest import runGapFillBacktest
+    from strategies.scalping.backtest import calcMetrics
+    p = self.getParams(**params)
+    marketDf = self._fetchMarketDf(p)
+
+    trades, equity = runGapFillBacktest(
+      data,
+      initialCapital=p["capital"],
+      gapThreshold=p["gapThreshold"],
+      stopLossPct=p["stopLossPct"],
+      maxHoldDays=p["maxHoldDays"],
+      slippagePct=p["slippage"],
+      exitAtClose=p["exitAtClose"],
+      volFilter=p["volFilter"],
+      marketDf=marketDf,
+    )
+    metrics = calcMetrics(trades, equity, p["capital"])
+
+    return BacktestResult(
+      strategyName=self.name,
+      symbol=params.get("symbol", ""),
+      interval=params.get("interval", "1d"),
+      trades=trades,
+      equity=equity,
+      metrics=metrics,
+      params=p,
+    )
+
+
+class AdaptiveGapStrategy(Strategy):
+  """適応型ギャップトレード（日本株）"""
+
+  name = "adaptive_gap"
+  description = "適応型ギャップトレード（日本株）"
+  category = "short_term"
+  defaultParams = {
+    "capital": 50_000,
+    "gdThreshold": 2.0,
+    "guFollowRange": [0.0, 0.0],
+    "guFadeThreshold": 5.0,
+    "stopLossPct": 1.5,
+    "maxHoldDays": 3,
+    "slippage": 0.1,
+    "skipLargeGdInUptrend": True,
+    "useMarketFilter": True,
+    "minAtr": 1.5,
+    "skipJiwauriRange": [8, 14],
+    "useAtrRank": True,
+    "useDynamicSize": True,
+    "maxPositionPct": 0.7,
+    "minPositionPct": 0.3,
+  }
+
+  def fetchData(self, symbol: str, interval: str = "1d", **kwargs) -> pd.DataFrame:
+    from strategies.jp_stock.data import fetchOhlcv
+    years = kwargs.get("years", 3)
+    return fetchOhlcv(symbol, interval, years)
+
+  def generateSignals(self, data: pd.DataFrame, **params) -> pd.DataFrame:
+    """
+    シグナル列を追加:
+      +1 = GD（GapFill/Follow）エントリー条件成立
+      -1 = GU 5%+（Fade）エントリー条件成立
+    """
+    import numpy as np
+    p = self.getParams(**params)
+    df = data.copy()
+    df["signal"] = 0
+
+    opens = df["open"].values
+    closes = df["close"].values
+    gdThreshold = p["gdThreshold"]
+    guFollowRange = p["guFollowRange"]
+    guFadeThreshold = p["guFadeThreshold"]
+
+    for i in range(25, len(df)):
+      prevClose = closes[i - 1]
+      if prevClose <= 0:
+        continue
+      gapPct = (opens[i] - prevClose) / prevClose * 100
+
+      if gapPct <= -gdThreshold:
+        df.iloc[i, df.columns.get_loc("signal")] = 1
+      elif guFollowRange[0] <= gapPct < guFollowRange[1]:
+        df.iloc[i, df.columns.get_loc("signal")] = 1
+      elif gapPct >= guFadeThreshold:
+        df.iloc[i, df.columns.get_loc("signal")] = -1
+
+    return df
+
+  def _fetchMarketDf(self, p: dict) -> pd.DataFrame | None:
+    """レジーム判定用の日経225データ取得"""
+    if not p.get("useMarketFilter", True):
+      return None
+    try:
+      from strategies.jp_stock.data import fetchOhlcv
+      return fetchOhlcv("^N225", interval="1d", years=3)
+    except Exception:
+      return None
+
+  def backtest(self, data: pd.DataFrame, **params) -> BacktestResult:
+    from strategies.jp_stock.backtest import runAdaptiveGapBacktest
+    from strategies.scalping.backtest import calcMetrics
+    p = self.getParams(**params)
+    marketDf = self._fetchMarketDf(p)
+
+    trades, equity = runAdaptiveGapBacktest(
+      data,
+      initialCapital=p["capital"],
+      gdThreshold=p["gdThreshold"],
+      guFollowRange=p["guFollowRange"],
+      guFadeThreshold=p["guFadeThreshold"],
+      stopLossPct=p["stopLossPct"],
+      maxHoldDays=p["maxHoldDays"],
+      slippagePct=p["slippage"],
+      skipLargeGdInUptrend=p["skipLargeGdInUptrend"],
+      marketDf=marketDf,
+      minAtr=p["minAtr"],
+      skipJiwauriRange=tuple(p["skipJiwauriRange"]),
+      useAtrRank=p["useAtrRank"],
+      useDynamicSize=p["useDynamicSize"],
+      maxPositionPct=p["maxPositionPct"],
+      minPositionPct=p["minPositionPct"],
+    )
+    metrics = calcMetrics(trades, equity, p["capital"])
+
+    return BacktestResult(
+      strategyName=self.name,
+      symbol=params.get("symbol", ""),
+      interval=params.get("interval", "1d"),
+      trades=trades,
+      equity=equity,
+      metrics=metrics,
+      params=p,
+    )
+
+
 register(VolumeBreakoutStrategy())
 register(BBSqueezeStrategy())
 register(MomentumRankingStrategy())
+register(GapFillStrategy())
+register(AdaptiveGapStrategy())
