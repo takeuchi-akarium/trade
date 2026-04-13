@@ -46,6 +46,16 @@ FUNDA_BOOST_WEIGHTS = {
   "range_boost":   {"bb": 60, "ema_don": 20, "bb_ls": 20},  # レンジ+ファンダ強気→ema_don増量
 }
 
+# 段階制: 乖離率の強度で参加戦略数を変える
+DEFAULT_GRADIENT_LEVELS = [
+  # (threshold, {strategy: weight%})  — threshold降順
+  (5.0,  {"bb": 0,  "ema_don": 100, "bb_ls": 0}),    # 強uptrend: ema_don単独
+  (2.0,  {"bb": 20, "ema_don": 80,  "bb_ls": 0}),    # 通常uptrend: 2戦略
+  (-2.0, {"bb": 60, "ema_don": 10,  "bb_ls": 30}),   # range: 3戦略分散
+  (-5.0, {"bb": 0,  "ema_don": 0,   "bb_ls": 100}),  # 通常downtrend: bb_ls単独
+  (None, {"bb": 0,  "ema_don": 0,   "bb_ls": 0}),    # 強downtrend: 全退避
+]
+
 
 def detectRegime(price: float, trendMa: float, threshold: float = 2.0) -> str:
   """短期MAとの乖離率でレジーム判定"""
@@ -99,6 +109,31 @@ def adjustRegimeByFunda(regime: str, sma50Dev: float, fundaScore: float,
 def _getRegimeWeight(strategyName: str, regime: str, regimeWeights: dict) -> float:
   """レジームに応じたweight%を取得"""
   return regimeWeights.get(regime, {}).get(strategyName, 0)
+
+
+def _parseGradientConfig(dynamicCfg: dict) -> tuple[bool, list | None]:
+  """段階制の設定をパースして (enabled, levels) を返す"""
+  gradientCfg = dynamicCfg.get("gradient", {})
+  if not gradientCfg.get("enabled", False):
+    return False, None
+  cfgLevels = gradientCfg.get("levels")
+  if cfgLevels:
+    return True, [(l["threshold"], l["weights"]) for l in cfgLevels]
+  return True, DEFAULT_GRADIENT_LEVELS
+
+
+def _getGradientWeight(strategyName: str, sma50Dev: float, levels: list) -> float:
+  """乖離率に応じて段階的にweight%を取得"""
+  if sma50Dev is None:
+    # NaN時はrange相当のレベルを探す（threshold <= 0の最初）
+    for thr, weights in levels:
+      if thr is not None and thr <= 0:
+        return weights.get(strategyName, 0)
+    return 0
+  for thr, weights in levels:
+    if thr is not None and sma50Dev > thr:
+      return weights.get(strategyName, 0)
+  return levels[-1][1].get(strategyName, 0)
 
 
 ENTRY_CONFIRM_RETRIES = 5
@@ -453,7 +488,11 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
 
     regimeWeights = dynamicCfg.get("regime_weights", DEFAULT_REGIME_WEIGHTS)
 
+    # 段階制: 乖離率の強度で参加戦略数を変える
+    useGradient, gradientLevels = _parseGradientConfig(dynamicCfg)
+
     # ファンダスコアによる補正 (Early Transition + Boost)
+    # 段階制ONの場合もEarly Transitionは適用（レジーム自体の補正）
     fundaScore = None
     fundaWeightOverride = None
     fundaCfg = dynamicCfg.get("funda", {})
@@ -484,16 +523,23 @@ def runCycle(config: dict, dryRun: bool = True) -> list[dict]:
       except Exception as e:
         print(f"  [funda] 取得失敗、テクニカルのみで続行: {e}")
 
-    print(f"  regime: {regime}  dynamic_weight: ON")
+    modeStr = "gradient" if useGradient else "regime"
+    print(f"  regime: {regime}  sma50_dev: {sma50Dev:+.2f}%  mode: {modeStr}" if sma50Dev is not None
+          else f"  regime: {regime}  mode: {modeStr}")
   else:
     regimeWeights = None
+    useGradient = False
+    gradientLevels = None
     print(f"  dynamic_weight: OFF")
 
   # 各戦略を実行
   results = []
   for sCfg in strategiesCfg:
-    # 動的weight適用（ファンダブースト時はそちらを優先）
-    if regimeWeights:
+    # 動的weight適用
+    if useGradient and not fundaWeightOverride:
+      # 段階制: 乖離率ベースでweight決定（ファンダブースト時は従来方式を優先）
+      sCfg = {**sCfg, "weight": _getGradientWeight(sCfg["name"], sma50Dev, gradientLevels)}
+    elif regimeWeights:
       if fundaWeightOverride:
         sCfg = {**sCfg, "weight": fundaWeightOverride.get(sCfg["name"], 0)}
       else:
@@ -573,7 +619,11 @@ def checkDart(config: dict) -> dict:
 
     regimeWeights = dynamicCfg.get("regime_weights", DEFAULT_REGIME_WEIGHTS)
 
+    # 段階制
+    useGradient, gradientLevels = _parseGradientConfig(dynamicCfg)
+
     # ファンダスコア
+    fundaWeightOverride = None
     fundaCfg = dynamicCfg.get("funda", {})
     if fundaCfg.get("enabled", False):
       try:
@@ -601,6 +651,9 @@ def checkDart(config: dict) -> dict:
         pass
   else:
     regimeWeights = None
+    useGradient = False
+    gradientLevels = None
+    fundaWeightOverride = None
 
   # 各戦略のシグナル分析
   strategyResults = []
@@ -610,9 +663,11 @@ def checkDart(config: dict) -> dict:
     interval = sCfg.get("interval", "1d")
     params = sCfg.get("params", {})
 
-    # 動的weight
-    if regimeWeights:
-      if fundaAdj == "BOOST" and 'fundaWeightOverride' in dir():
+    # 動的weight（runCycleと同じロジック）
+    if useGradient and not fundaWeightOverride:
+      weight = _getGradientWeight(sName, sma50Dev, gradientLevels)
+    elif regimeWeights:
+      if fundaWeightOverride:
         weight = fundaWeightOverride.get(sName, 0)
       else:
         weight = _getRegimeWeight(sName, regime, regimeWeights)
@@ -703,6 +758,7 @@ def checkDart(config: dict) -> dict:
     "balanceBtc": balBtc,
     "totalEquity": totalEquity,
     "regime": regime,
+    "weightMode": "gradient" if useGradient else "regime",
     "sma50": trendMa,
     "sma50Dev": round(sma50Dev, 2) if sma50Dev else None,
     "fundaScore": round(fundaScore, 3) if fundaScore else None,

@@ -115,6 +115,24 @@ trader:
     # regime_weights:
     #   downtrend: {bb: 0, bb_ls: 100}
 
+    # 段階制: 乖離率の強度で参加戦略数を変える（regime_weightsより優先）
+    # 有効時はSMA50乖離率に応じて1〜3戦略を動的に起用
+    gradient:
+      enabled: true
+      # デフォルト閾値: +5%(ema単独), +2%(ema+bb), -2%(3戦略分散), -5%(bb_ls単独), それ以下(全退避)
+      # カスタム閾値を使う場合はコメントを外す:
+      # levels:
+      #   - threshold: 5.0
+      #     weights: {bb: 0, ema_don: 100, bb_ls: 0}
+      #   - threshold: 2.0
+      #     weights: {bb: 20, ema_don: 80, bb_ls: 0}
+      #   - threshold: -2.0
+      #     weights: {bb: 60, ema_don: 10, bb_ls: 30}
+      #   - threshold: -5.0
+      #     weights: {bb: 0, ema_don: 0, bb_ls: 100}
+      #   - threshold: null
+      #     weights: {bb: 0, ema_don: 0, bb_ls: 0}
+
     # ファンダ補正: ゴールド/10年債/FnGでレジーム判定を微調整
     funda:
       enabled: true

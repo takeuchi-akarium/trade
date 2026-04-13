@@ -316,9 +316,60 @@ REGIME_WEIGHTS = {
   "downtrend": (0.00, 0.00, 0.00),  # 全退避
 }
 
+# 配分パターン比較用（固定レジーム型）
+ALLOCATION_PATTERNS = {
+  "current": {
+    "label": "現行ミックス",
+    "type": "fixed",
+    "weights": REGIME_WEIGHTS,
+  },
+  "regime_solo": {
+    "label": "得意戦略のみ",
+    "type": "fixed",
+    "weights": {
+      "uptrend":   (0.00, 1.00, 0.00),
+      "range":     (1.00, 0.00, 0.00),
+      "downtrend": (0.00, 0.00, 0.00),
+    },
+  },
+  "gradient": {
+    "label": "段階制",
+    "type": "gradient",
+    # 乖離率の閾値で参加戦略数が変わる
+    # (bb, ema_don, bb_ls)
+    "levels": {
+      # SMA50乖離率 > +5%: 強uptrend → ema_don単独
+      "strong_up":   {"threshold": 5.0,  "weights": (0.00, 1.00, 0.00)},
+      # +2% ~ +5%: 通常uptrend → ema_don主力 + bb補助
+      "uptrend":     {"threshold": 2.0,  "weights": (0.20, 0.80, 0.00)},
+      # -2% ~ +2%: range → 3戦略分散
+      "range":       {"threshold": -2.0, "weights": (0.60, 0.10, 0.30)},
+      # -5% ~ -2%: 通常downtrend → bb_ls単独
+      "downtrend":   {"threshold": -5.0, "weights": (0.00, 0.00, 1.00)},
+      # < -5%: 強downtrend → 全退避
+      "strong_down": {"threshold": None, "weights": (0.00, 0.00, 0.00)},
+    },
+    # NaN/無効値時のデフォルトweight
+    "nanDefault": (0.60, 0.10, 0.30),
+  },
+}
+
+
+def _sortLevels(levels: dict) -> list:
+  """levelsをthreshold降順にソート。threshold=Noneは末尾"""
+  return sorted(
+    levels.items(),
+    key=lambda x: x[1]["threshold"] if x[1]["threshold"] is not None else float("-inf"),
+    reverse=True,
+  )
+
+
+# gradient用のソート済みレベルをモジュールレベルでキャッシュ
+_GRADIENT_SORTED = _sortLevels(ALLOCATION_PATTERNS["gradient"]["levels"])
+
 
 def detectRegime(close: float, trendMa: float) -> str:
-  """現在の相場レジームを判定"""
+  """現在の相場レジームを判定（3段階）"""
   if np.isnan(trendMa):
     return "range"
   if close > trendMa * 1.02:
@@ -329,20 +380,30 @@ def detectRegime(close: float, trendMa: float) -> str:
     return "range"
 
 
-def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
-                     feePct: float = 0.1, trendMaPeriod: int = 50) -> dict:
-  """
-  比率変動制: トレンドに応じてbb/bb_lsのweight配分を動的に変更。
+def _gradientWeights(close: float, trendMa: float, sortedLevels: list, nanDefault: tuple) -> tuple:
+  """乖離率に応じて段階的にweightを返す。sortedLevelsはthreshold降順のリスト"""
+  if np.isnan(trendMa) or trendMa == 0:
+    return nanDefault
+  dev = (close - trendMa) / trendMa * 100
+  for _, info in sortedLevels:
+    if info["threshold"] is not None and dev > info["threshold"]:
+      return info["weights"]
+  return sortedLevels[-1][1]["weights"]
 
-  各足でレジーム判定 → 配分変更 → 各戦略のリターンをweight比率で合算。
-  """
-  import strategies
-  from strategies.registry import getStrategy
 
+def _prepareBacktestData(scenarioKey: str, initialCapital: float, feePct: float, trendMaPeriod: int):
+  """シナリオのデータとバックテスト結果を準備（共通化）"""
   scenario = SCENARIOS[scenarioKey]
   data = scenario["fn"]()
+  return _runBacktestOnData(data, initialCapital, feePct, trendMaPeriod)
 
-  # 3戦略のシグナルを生成
+
+def _runBacktestOnData(data, initialCapital: float, feePct: float, trendMaPeriod: int):
+  """任意のOHLCVデータで3戦略のバックテストを実行"""
+  import strategies
+  from strategies.registry import getStrategy
+  from strategies.scalping.backtest import runBacktest, runBacktestLongShort
+
   bbStrategy = getStrategy("bb")
   emaStrategy = getStrategy("ema_don")
   bbLsStrategy = getStrategy("bb_ls")
@@ -351,37 +412,75 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
   dfEma = emaStrategy.generateSignals(data.copy(), short=10, long=50)
   dfBbLs = bbLsStrategy.generateSignals(data.copy())
 
-  # トレンド判定用
   trendMa = data["close"].rolling(trendMaPeriod).mean()
 
-  # 各戦略を独立にバックテストし、日次リターンを計算
-  from strategies.scalping.backtest import runBacktest, runBacktestLongShort
-
-  _, eqBb = runBacktest(dfBb, initialCapital, feePct / 100)
-  _, eqEma = runBacktest(dfEma, initialCapital, feePct / 100)
-  _, eqBbLs = runBacktestLongShort(dfBbLs, initialCapital, feePct / 100, stopLossPct=5.0)
+  _, eqBb = runBacktest(dfBb, initialCapital, feePct)
+  _, eqEma = runBacktest(dfEma, initialCapital, feePct)
+  _, eqBbLs = runBacktestLongShort(dfBbLs, initialCapital, feePct, stopLossPct=5.0)
 
   retBb = eqBb.pct_change().fillna(0)
   retEma = eqEma.pct_change().fillna(0)
   retBbLs = eqBbLs.pct_change().fillna(0)
 
+  return data, trendMa, retBb, retEma, retBbLs
+
+
+def runDynamicWeight(scenarioKey: str = None, initialCapital: float = 100_000,
+                     feePct: float = 0.1, trendMaPeriod: int = 50,
+                     weights: dict = None, gradientLevels: dict = None,
+                     nanDefault: tuple = None,
+                     precomputed: tuple = None) -> dict:
+  """
+  比率変動制: トレンドに応じてbb/bb_lsのweight配分を動的に変更。
+
+  weights: 固定レジーム型の配分dict
+  gradientLevels: 段階制のlevels dict（乖離率ベース）
+  nanDefault: gradient時のNaN/無効値フォールバックweight
+  precomputed: _prepareBacktestDataの戻り値（再利用で高速化）
+  """
+  if precomputed:
+    data, trendMa, retBb, retEma, retBbLs = precomputed
+  elif scenarioKey:
+    data, trendMa, retBb, retEma, retBbLs = _prepareBacktestData(
+      scenarioKey, initialCapital, feePct, trendMaPeriod)
+  else:
+    raise ValueError("scenarioKey or precomputed is required")
+
+  # gradient用のソート済みレベル（キャッシュがあれば使用）
+  if gradientLevels:
+    if gradientLevels is ALLOCATION_PATTERNS["gradient"]["levels"]:
+      sortedLevels = _GRADIENT_SORTED
+    else:
+      sortedLevels = _sortLevels(gradientLevels)
+    if nanDefault is None:
+      nanDefault = (0.60, 0.10, 0.30)
+  else:
+    sortedLevels = None
+
   # 比率変動制でequityを構築
   equity = initialCapital
   equityList = []
   regimeHistory = []
-  prevRegime = None
+  prevWeights = None
 
   for i in range(len(data)):
     close = data["close"].iloc[i]
     ma = trendMa.iloc[i]
 
-    regime = detectRegime(close, ma)
-    wBb, wEma, wBbLs = REGIME_WEIGHTS[regime]
+    if sortedLevels:
+      wBb, wEma, wBbLs = _gradientWeights(close, ma, sortedLevels, nanDefault)
+      regime = detectRegime(close, ma)
+    else:
+      regime = detectRegime(close, ma)
+      wBb, wEma, wBbLs = (weights or REGIME_WEIGHTS)[regime]
 
-    # レジーム切替時のリバランスコスト（片道手数料 x 2戦略分）
-    if prevRegime is not None and regime != prevRegime:
-      rebalanceCost = equity * feePct / 100 * 2
+    # weight変化量に比例したリバランスコスト
+    curWeights = (wBb, wEma, wBbLs)
+    if prevWeights is not None and curWeights != prevWeights:
+      weightDelta = sum(abs(a - b) for a, b in zip(curWeights, prevWeights))
+      rebalanceCost = equity * feePct / 100 * weightDelta
       equity -= rebalanceCost
+    prevWeights = curWeights
 
     rBb = retBb.iloc[i] if i < len(retBb) else 0
     rEma = retEma.iloc[i] if i < len(retEma) else 0
@@ -391,7 +490,6 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
     equity *= (1 + portfolioReturn)
     equityList.append(equity)
     regimeHistory.append(regime)
-    prevRegime = regime
 
   eqSeries = pd.Series(equityList, index=data.index)
   finalValue = equityList[-1]
@@ -407,9 +505,10 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
   for r in regimeHistory:
     regimeCounts[r] = regimeCounts.get(r, 0) + 1
 
+  scenarioName = SCENARIOS[scenarioKey]["name"] if scenarioKey else "real_data"
   return {
-    "scenario": scenario["name"],
-    "scenarioKey": scenarioKey,
+    "scenario": scenarioName,
+    "scenarioKey": scenarioKey or "real_data",
     "totalReturn": totalReturn,
     "finalValue": finalValue,
     "mdd": mdd,
@@ -418,7 +517,7 @@ def runDynamicWeight(scenarioKey: str, initialCapital: float = 100_000,
 
 
 def runDynamicComparison():
-  """比率変動制 vs 固定配分の比較"""
+  """比率変動制 vs 固定配分の比較（レガシー。新規はrunAllocationComparisonを使用）"""
   print(f"\n{'=' * 70}")
   print(f"  比率変動制 vs 固定配分 比較")
   print(f"{'=' * 70}")
@@ -434,7 +533,7 @@ def runDynamicComparison():
 
     # 個別戦略
     rBb = runScenario("bb", sKey)
-    rEma = runScenario("ema", sKey)
+    rEma = runScenario("ema_don", sKey)
     rBbLs = runScenario("bb_ls", sKey)
 
     regimeStr = " / ".join(f"{k}:{v}" for k, v in dynResult["regimeCounts"].items())
@@ -480,6 +579,131 @@ def runDynamicComparison():
   print(f"  {'bb_ls単体':<20s} {bbLsExpected:>+11.2f}% {bbLsWorst:>+11.2f}%")
 
 
+def _printPatternSummary(verbose: bool = True):
+  """配分パターンの説明を表示"""
+  print(f"\n  テスト対象:")
+  for pKey, pInfo in ALLOCATION_PATTERNS.items():
+    if pInfo["type"] == "fixed":
+      w = pInfo["weights"]
+      parts = []
+      for regime in ["uptrend", "range", "downtrend"]:
+        bb, ema, ls = w[regime]
+        if bb + ema + ls == 0:
+          parts.append(f"{regime}:退避")
+        else:
+          active = []
+          if bb > 0: active.append(f"bb{bb:.0%}")
+          if ema > 0: active.append(f"ema{ema:.0%}")
+          if ls > 0: active.append(f"ls{ls:.0%}")
+          parts.append(f"{regime}:{'+'.join(active)}")
+      print(f"    {pInfo['label']:<16s} {' / '.join(parts)}")
+    elif pInfo["type"] == "gradient":
+      if verbose:
+        print(f"    {pInfo['label']:<16s} 乖離率で参加戦略数が変化:")
+        for lKey, lInfo in pInfo["levels"].items():
+          bb, ema, ls = lInfo["weights"]
+          thr = lInfo["threshold"]
+          active = []
+          if bb > 0: active.append(f"bb{bb:.0%}")
+          if ema > 0: active.append(f"ema{ema:.0%}")
+          if ls > 0: active.append(f"ls{ls:.0%}")
+          wStr = "+".join(active) if active else "退避"
+          thrStr = f">{thr:+.0f}%" if thr is not None else "それ以下"
+          print(f"      {lKey:<14s} ({thrStr:<8s}) → {wStr}  [{len(active)}戦略]")
+      else:
+        print(f"    {pInfo['label']:<16s} 乖離率で参加戦略数が変化 (5段階)")
+
+
+def runAllocationComparison():
+  """配分パターン比較: 現行 vs 得意戦略のみ vs 段階制"""
+  print(f"\n{'=' * 70}")
+  print(f"  DART配分パターン比較")
+  print(f"{'=' * 70}")
+
+  _printPatternSummary(verbose=True)
+
+  allResults = {pKey: [] for pKey in ALLOCATION_PATTERNS}
+
+  for sKey, sInfo in SCENARIOS.items():
+    prob = sInfo["probability"]
+    data = sInfo["fn"]()
+    pStart = data["close"].iloc[0]
+    pEnd = data["close"].iloc[-1]
+    pChange = (pEnd - pStart) / pStart * 100
+
+    # バックテスト結果を共有して高速化
+    precomputed = _prepareBacktestData(sKey, 100_000, 0.1, 50)
+
+    print(f"\n  [{sInfo['name']}]  確率: {prob:.0%}  価格: {pStart:,.0f} → {pEnd:,.0f} ({pChange:+.1f}%)")
+    print(f"  {'パターン':<16s} {'リターン':>10s} {'MDD':>10s} {'レジーム分布'}")
+    print(f"  {'-' * 65}")
+
+    for pKey, pInfo in ALLOCATION_PATTERNS.items():
+      if pInfo["type"] == "gradient":
+        result = runDynamicWeight(sKey, gradientLevels=pInfo["levels"], nanDefault=pInfo.get("nanDefault"), precomputed=precomputed)
+      else:
+        result = runDynamicWeight(sKey, weights=pInfo["weights"], precomputed=precomputed)
+      regimeStr = " ".join(f"{k[0].upper()}:{v}" for k, v in result["regimeCounts"].items())
+      print(f"  {pInfo['label']:<16s} {result['totalReturn']:>+9.2f}% {result['mdd']:>+9.2f}% {regimeStr}")
+      allResults[pKey].append({
+        "scenarioKey": sKey,
+        "probability": prob,
+        **result,
+      })
+
+  # 確率加重サマリー
+  print(f"\n{'=' * 70}")
+  print(f"  確率加重 総合評価")
+  print(f"{'=' * 70}")
+  print(f"  {'パターン':<16s} {'期待リターン':>12s} {'最悪ケース':>12s} {'期待MDD':>10s} {'リターン/MDD':>12s}")
+  print(f"  {'-' * 64}")
+
+  for pKey, pInfo in ALLOCATION_PATTERNS.items():
+    results = allResults[pKey]
+    expectedReturn = sum(r["totalReturn"] * r["probability"] for r in results)
+    worstReturn = min(r["totalReturn"] for r in results)
+    expectedMdd = sum(r["mdd"] * r["probability"] for r in results)
+    ratio = expectedReturn / abs(expectedMdd) if expectedMdd != 0 else 0
+    print(f"  {pInfo['label']:<16s} {expectedReturn:>+11.2f}% {worstReturn:>+11.2f}% {expectedMdd:>+9.2f}% {ratio:>11.2f}")
+
+
+def runAllocationBacktest(years: int = 3):
+  """実データ(Binance BTCUSDT)で配分パターンを比較バックテスト"""
+  import strategies
+  from strategies.registry import getStrategy
+
+  print(f"\n{'=' * 70}")
+  print(f"  DART配分パターン バックテスト (BTCUSDT {years}Y)")
+  print(f"{'=' * 70}")
+
+  # 実データ取得
+  strategy = getStrategy("bb")
+  data = strategy.fetchData(symbol="BTCUSDT", interval="1d", years=years)
+  pStart = data["close"].iloc[0]
+  pEnd = data["close"].iloc[-1]
+  pChange = (pEnd - pStart) / pStart * 100
+  print(f"  期間: {data.index[0].strftime('%Y-%m-%d')} ~ {data.index[-1].strftime('%Y-%m-%d')} ({len(data)}日)")
+  print(f"  BTC: {pStart:,.0f} -> {pEnd:,.0f} ({pChange:+.1f}%)")
+
+  # バックテスト結果を共有
+  precomputed = _runBacktestOnData(data, 100_000, 0.1, 50)
+
+  _printPatternSummary(verbose=False)
+
+  # 各パターンでバックテスト
+  print(f"\n  {'パターン':<16s} {'リターン':>10s} {'MDD':>10s} {'最終資産':>12s} {'リターン/MDD':>12s} {'レジーム分布'}")
+  print(f"  {'-' * 75}")
+
+  for pKey, pInfo in ALLOCATION_PATTERNS.items():
+    if pInfo["type"] == "gradient":
+      result = runDynamicWeight(precomputed=precomputed, gradientLevels=pInfo["levels"])
+    else:
+      result = runDynamicWeight(precomputed=precomputed, weights=pInfo["weights"])
+    regimeStr = " ".join(f"{k[0].upper()}:{v}" for k, v in result["regimeCounts"].items())
+    ratio = result["totalReturn"] / abs(result["mdd"]) if result["mdd"] != 0 else 0
+    print(f"  {pInfo['label']:<16s} {result['totalReturn']:>+9.2f}% {result['mdd']:>+9.2f}% {result['finalValue']:>12,.0f} {ratio:>11.2f} {regimeStr}")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -491,9 +715,16 @@ if __name__ == "__main__":
                       help="comma-separated strategy names")
   parser.add_argument("--sl", type=float, default=None, help="stop loss pct")
   parser.add_argument("--dynamic", action="store_true", help="run dynamic weight comparison")
+  parser.add_argument("--allocation", action="store_true", help="run allocation pattern comparison (synthetic)")
+  parser.add_argument("--backtest", action="store_true", help="run allocation backtest (real data)")
+  parser.add_argument("--years", type=int, default=3, help="years of data for backtest")
   args = parser.parse_args()
 
-  if args.dynamic:
+  if args.backtest:
+    runAllocationBacktest(years=args.years)
+  elif args.allocation:
+    runAllocationComparison()
+  elif args.dynamic:
     runDynamicComparison()
   else:
     names = [s.strip() for s in args.strategies.split(",")]
