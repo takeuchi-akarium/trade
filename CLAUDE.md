@@ -47,15 +47,28 @@ python src/simulator/runner.py live --strategy rsi --symbol BTCUSDT --interval 5
 python src/web/app.py
 # http://localhost:5000             ← メインダッシュボード
 # http://localhost:5000/simulations ← シミュレーション結果
+# http://localhost:5000/trade-journal ← トレード判断記録
 ```
+
+### DART戦略 (Dynamic Adaptive Regime Trading)
+
+BTCの種戦略。相場レジーム（上昇/レンジ/下落）を自動判定し、3つのサブ戦略の資金配分を動的に切り替える。
+ファンダメンタルズ（ゴールド/10年債/FnG）でEarly Transition（早期退避）とBoost（攻勢）を補正。
+空売りはレバ1倍のbb_ls戦略で対応。
+
+- **実装**: `src/trader/engine.py` (レジーム判定・配分ロジック)
+- **実行**: `python src/trader/run.py --dry-run`
+- **設定**: `config.yaml` の `trader` セクション
+- **解説**: `docs/strategy.html`
 
 ### 登録済み戦略
 
 | 名前 | カテゴリ | 説明 |
 |------|---------|------|
 | `rsi` | short_term | RSI逆張り |
-| `bb` | short_term | ボリンジャーバンド |
+| `bb` | short_term | ボリンジャーバンド（DART: 押し目買い） |
 | `ema` | short_term | EMAクロス |
+| `ema_don` | short_term | EMA + ドンチャン補完（DART: 順張り主力） |
 | `vwap` | short_term | VWAP乖離 |
 | `btc_ma` | long_term | BTC MAクロス (Mid-Band Exit) |
 | `dual_momentum` | long_term | デュアルモメンタム (GEM) |
@@ -69,6 +82,30 @@ python src/web/app.py
 2. `__init__.py` に `Strategy` を継承したクラスを実装し `register()` を呼ぶ
 3. `src/strategies/__init__.py` に `import strategies.新戦略` を追加
 4. 完了 — CLIから使える
+
+## トレード判断記録（Trade Journal）
+
+板情報・ニュース・テクニカル・判断理由を記録し、結果と照合してパターン認識を蓄積するツール。
+
+```bash
+# 新規記録
+python src/trade_journal.py add --ticker 8035 --direction short --name "東京エレクトロン" \
+  --ask-volume 24000 --bid-volume 900 --close 44040 --bb "+2σ〜+3σ" --rsi 63.9 \
+  --news "米イラン停戦交渉決裂|ホルムズ海峡再閉鎖" --reasoning "停戦ラリー巻き戻し"
+
+# 結果記入
+python src/trade_journal.py result --id 20260413_8035 --entry 44000 --exit 42590 --outcome win
+
+# 一覧・統計
+python src/trade_journal.py list
+python src/trade_journal.py stats
+
+# ダッシュボード
+# http://localhost:5000/trade-journal
+```
+
+データは `data/trade_journal/entries.json` に保存。板のスクリーンショットは `data/trade_journal/screenshots/` に配置する。
+将来、証券会社API（立花証券 e支店 or 三菱UFJ eスマート証券）で板情報の自動取得を追加予定。
 
 ## ルール
 
