@@ -30,6 +30,7 @@ class Strategy(ABC):
   name: str = ""
   description: str = ""
   category: str = ""  # "short_term", "long_term", "pair", "macro"
+  version: str = "1.0.0"
   defaultParams: dict = {}
 
   @abstractmethod

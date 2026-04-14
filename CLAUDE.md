@@ -73,6 +73,7 @@ BTCの種戦略。SMA50乖離率の強度に応じて参加戦略数を動的に
 | `btc_ma` | long_term | BTC MAクロス (Mid-Band Exit) |
 | `dual_momentum` | long_term | デュアルモメンタム (GEM) |
 | `leadlag` | long_term | 日米リードラグ (PCA SUB) |
+| `dart` | composite | DART段階制 (bb+ema_don+bb_ls 動的配分) |
 | `pair_bb` | pair | ペアトレード スプレッドBB |
 | `pair_ema` | pair | ペアトレード スプレッドEMA |
 
@@ -100,9 +101,45 @@ rm -rf data/cache/              # 全キャッシュ
 | dual_momentum | `data/dual_momentum/monthly_prices.csv` | 増分更新 |
 | leadlag | `data/leadlag/us_sectors.csv`, `jp_sectors.csv` | 増分更新 |
 
-## シナリオテスト
+## ベンチマーク (bench)
 
-合成相場データで戦略の耐性を検証するツール。確率加重で総合スコアを算出する。
+戦略の定量評価を統一フォーマットで実行する。結果テーブル+示唆が自動出力される。
+
+### 3つのベンチタイプ
+
+| type | データ | 評価内容 |
+|------|--------|---------|
+| `backtest` | 実データ | 戦略の実績パフォーマンス |
+| `scenario` | 合成6パターン | 戦略の相場耐性 |
+| `allocation` | 両方 | 戦略の配分パターン比較（等配分 vs 各単独 vs DART段階制） |
+
+```bash
+# --- backtest: 実データで戦略を評価 ---
+python src/simulator/runner.py bench --type backtest --strategies all --years 3
+python src/simulator/runner.py bench --type backtest --strategies short_term --sl 5.0
+python src/simulator/runner.py bench --type backtest --strategies dart,bb,ema_don --years 3
+
+# --- scenario: 合成データ6パターンで耐性を評価 ---
+python src/simulator/runner.py bench --type scenario --strategies dart,bb,ema_don --sl 5.0
+
+# --- allocation: 配分パターン比較 ---
+python src/simulator/runner.py bench --type allocation --years 3                          # DART (bb,ema_don,bb_ls)
+python src/simulator/runner.py bench --type allocation --strategies rsi,bb,ema --years 1  # 任意の戦略
+```
+
+### パラメータ
+
+| 引数 | デフォルト | 説明 |
+|------|-----------|------|
+| `--type` | backtest | backtest / scenario / allocation |
+| `--strategies` | all | 戦略名カンマ区切り / all / カテゴリ名 |
+| `--symbol` | BTCUSDT | 銘柄 |
+| `--interval` | 1d | 時間足 |
+| `--years` | 1 | 期間（年） |
+| `--sl` | なし | ストップロス(%) |
+| `--tp` | なし | テイクプロフィット(%) |
+
+### シナリオ一覧（scenario / allocation で使用）
 
 | シナリオ | 確率 | 内容 |
 |---------|------|------|
@@ -113,40 +150,25 @@ rm -rf data/cache/              # 全キャッシュ
 | `bubble_burst` | 15% | バブル崩壊 (3倍→-70%) |
 | `range_breakout` | 15% | ヨコヨコ→急騰 |
 
-```bash
-# 全シナリオ × デフォルト戦略
-python src/simulator/scenario.py
+### allocation の動作
 
-# 戦略指定 + ストップロス
-python src/simulator/scenario.py --strategies bb,ema_don --sl 5.0
+`--strategies` の指定によって動作が変わる:
 
-# 比率変動制（レジーム連動ウェイト）vs 固定配分
-python src/simulator/scenario.py --dynamic
+| 指定 | 動作 | 比較パターン |
+|------|------|-------------|
+| 未指定 or `bb,ema_don,bb_ls` | DART専用 | 現行ミックス / 得意戦略のみ / 段階制 |
+| それ以外 | 汎用 | 等配分 (1/N) / 各戦略単独 |
 
-# 配分パターン比較（合成データ）
-python src/simulator/scenario.py --allocation
+DART専用モードではレジーム連動のリバランスコストも考慮。
+汎用モードでは任意のN戦略を組み合わせて「混ぜたほうが良いか、単独が良いか」を評価できる。
 
-# 配分パターン比較（実データ）
-python src/simulator/scenario.py --backtest --years 3
-```
+### 出力
 
-## テスト
-
-現在テスト基盤は未整備（pytest、tests/、CI全てなし）。今後の構築方針:
-
-```bash
-# 予定コマンド
-pytest tests/
-pytest tests/unit/ -v         # ユニットテスト
-pytest tests/integration/     # 統合テスト（API接続あり）
-```
-
-### テスト対象の優先順位
-
-1. 戦略のシグナル生成ロジック (`src/strategies/*/`)
-2. メトリクス計算 (`src/simulator/metrics.py`)
-3. シナリオの合成データ再現性（seed固定で回帰テスト可能）
-4. Webルートの正常応答 (`src/web/app.py`)
+各ベンチはリターン降順のテーブルと示唆を自動出力する。示唆の観点:
+- 極値の指摘（最高リターン、最低MDD、最高シャープ）とそのトレードオフ
+- 統計的信頼性の警告（取引数が少ない場合）
+- シナリオ耐性（全シナリオ黒字か、最悪ケースの特定）
+- 配分パターンの優劣（allocation時）
 
 ## トレード判断記録（Trade Journal）
 

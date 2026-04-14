@@ -13,5 +13,6 @@ import strategies.pair_trading
 import strategies.grid
 import strategies.adaptive
 import strategies.jp_stock
+import strategies.dart
 
 from strategies.registry import listStrategies, getStrategy

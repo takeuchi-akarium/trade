@@ -6,6 +6,8 @@
   python src/simulator/runner.py run --strategy rsi --symbol BTCUSDT --interval 1d
   python src/simulator/runner.py compare --strategies rsi,bb,ema --symbol BTCUSDT
   python src/simulator/runner.py live --strategy rsi --symbol BTCUSDT --interval 5m
+  python src/simulator/runner.py bench --type backtest --strategies all --years 3
+  python src/simulator/runner.py bench --type scenario --strategies bb,ema_don --sl 5.0
 """
 
 import argparse
@@ -14,6 +16,8 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+import pandas as pd
 
 # src/ をパスに追加
 ROOT = Path(__file__).resolve().parent.parent
@@ -81,16 +85,25 @@ def cmdCompare(args):
 
   strategyKeys = [s.strip() for s in args.strategies.split(",")]
   results = []
+  dataCache = {}  # 同じfetchDataソースのデータを使い回す
 
   for key in strategyKeys:
     strategy = getStrategy(key)
-    print(f"\n  [{key}] データ取得中...")
 
-    data = strategy.fetchData(
-      symbol=args.symbol, interval=args.interval,
-      years=args.years)
+    # 戦略クラス名をキーにキャッシュ（同じクラスなら同じデータ）
+    fetchKey = (strategy.__class__.__name__, args.symbol, args.interval, args.years)
+    if fetchKey in dataCache:
+      data = dataCache[fetchKey]
+      print(f"\n  [{key}] キャッシュ済みデータを使用 ({len(data)}行)")
+    else:
+      print(f"\n  [{key}] データ取得中...")
+      data = strategy.fetchData(
+        symbol=args.symbol, interval=args.interval,
+        years=args.years)
+      dataCache[fetchKey] = data
+      print(f"  [{key}] 取得完了 ({len(data)}行)")
 
-    print(f"  [{key}] バックテスト実行中... ({len(data)}行)")
+    print(f"  [{key}] バックテスト実行中...")
 
     result = strategy.backtest(
       data,
@@ -98,6 +111,8 @@ def cmdCompare(args):
       interval=args.interval,
       capital=args.capital,
       fee=args.fee,
+      sl=args.sl,
+      tp=args.tp,
     )
 
     initialCapital = result.equity.iloc[0] if len(result.equity) > 0 else args.capital
@@ -107,6 +122,365 @@ def cmdCompare(args):
 
   saveCompare(results)
   print(f"\n  ブラウザで確認: http://localhost:5000/simulations")
+
+
+# ---------------------------------------------------------------------------
+# bench — 統一ベンチマーク
+# ---------------------------------------------------------------------------
+
+def _resolveStrategies(strategiesArg: str) -> list:
+  """戦略指定を解決: 戦略名カンマ区切り / all / カテゴリ名"""
+  import strategies
+  from strategies.registry import listStrategies
+
+  allStrats = listStrategies()
+  categories = {s.category for s in allStrats}
+
+  if strategiesArg == "all":
+    return allStrats
+
+  if strategiesArg in categories:
+    return [s for s in allStrats if s.category == strategiesArg]
+
+  # カンマ区切りの戦略名
+  from strategies.registry import getStrategy
+  keys = [k.strip() for k in strategiesArg.split(",")]
+  return [getStrategy(k) for k in keys]
+
+
+def cmdBench(args):
+  """統一ベンチマーク — バックテスト/シナリオ/配分比較で戦略を評価"""
+  if args.type == "allocation":
+    print(f"\n  bench (allocation)  DART配分パターン比較")
+    _benchAllocation(args)
+    return
+
+  strategyList = _resolveStrategies(args.strategies)
+  strategyNames = [s.name for s in strategyList]
+
+  if not strategyList:
+    print("  対象戦略がありません")
+    return
+
+  print(f"\n  bench ({args.type})  対象: {', '.join(strategyNames)}")
+
+  if args.type == "backtest":
+    _benchBacktest(args, strategyList)
+  elif args.type == "scenario":
+    _benchScenario(args, strategyNames)
+  else:
+    print(f"  不明なタイプ: {args.type} (backtest / scenario / allocation)")
+
+
+def _benchBacktest(args, strategyList):
+  """バックテストベンチ"""
+  from simulator.metrics import ensureMetrics
+  from simulator.report import printBenchBacktest, saveCompare
+
+  results = []
+  dataCache = {}
+
+  for strategy in strategyList:
+    key = strategy.name
+    fetchKey = (strategy.__class__.__name__, args.symbol, args.interval, args.years)
+
+    if fetchKey in dataCache:
+      data = dataCache[fetchKey]
+    else:
+      print(f"  [{key}] データ取得中...")
+      try:
+        data = strategy.fetchData(
+          symbol=args.symbol, interval=args.interval,
+          years=args.years)
+        dataCache[fetchKey] = data
+      except Exception as e:
+        print(f"  [{key}] スキップ: {e}")
+        continue
+
+    print(f"  [{key}] バックテスト実行中... ({len(data)}行)")
+    try:
+      result = strategy.backtest(
+        data,
+        symbol=args.symbol,
+        interval=args.interval,
+        capital=args.capital,
+        fee=args.fee,
+        sl=args.sl,
+        tp=args.tp,
+      )
+      initialCapital = result.equity.iloc[0] if len(result.equity) > 0 else args.capital
+      result.metrics = ensureMetrics(result.metrics, result.trades, result.equity, initialCapital)
+      results.append(result)
+    except Exception as e:
+      print(f"  [{key}] スキップ: {e}")
+      continue
+
+  if results:
+    printBenchBacktest(results, args.symbol, args.interval, args.years, args.sl, args.tp)
+    saveCompare(results)
+
+    # bench共通保存
+    from simulator.report import saveBenchResult
+    stratNames = [r.strategyName for r in results]
+    versions = {r.strategyName: next(s.version for s in strategyList if s.name == r.strategyName) for r in results}
+    saveBenchResult(
+      "backtest", stratNames, args.symbol, args.interval, args.years,
+      sl=args.sl, tp=args.tp,
+      results={r.strategyName: r.metrics for r in results},
+      strategyVersions=versions,
+    )
+
+
+def _benchScenario(args, strategyNames):
+  """シナリオベンチ"""
+  from simulator.scenario import SCENARIOS, runScenario
+  from simulator.report import printBenchScenario
+
+  scenarioResults = []
+  for sKey in SCENARIOS:
+    for name in strategyNames:
+      print(f"  [{name}] {SCENARIOS[sKey]['name']}...")
+      try:
+        r = runScenario(name, sKey, sl=args.sl)
+        scenarioResults.append(r)
+      except Exception as e:
+        print(f"  [{name}] {sKey} スキップ: {e}")
+
+  if scenarioResults:
+    printBenchScenario(scenarioResults, strategyNames, SCENARIOS, args.sl)
+
+    # bench共通保存
+    from simulator.report import saveBenchResult
+    from strategies.registry import getStrategy
+    versions = {}
+    for name in strategyNames:
+      try:
+        versions[name] = getStrategy(name).version
+      except KeyError:
+        pass
+
+    # 戦略ごとにシナリオ結果を整理
+    resultsByStrategy = {}
+    for name in strategyNames:
+      stratResults = [r for r in scenarioResults if r["strategy"] == name]
+      expectedReturn = sum(
+        r["metrics"]["totalReturn"] * SCENARIOS[r["scenarioKey"]]["probability"]
+        for r in stratResults
+      )
+      perScenario = {r["scenarioKey"]: r["metrics"]["totalReturn"] for r in stratResults}
+      resultsByStrategy[name] = {
+        "expectedReturn": round(expectedReturn, 2),
+        "perScenario": perScenario,
+      }
+
+    saveBenchResult(
+      "scenario", strategyNames, args.symbol, args.interval, args.years,
+      sl=args.sl,
+      results=resultsByStrategy,
+      strategyVersions=versions,
+    )
+
+
+def _runPortfolioBacktest(data, strategyNames, capital, feePct, weights):
+  """任意のN戦略でポートフォリオバックテストを実行"""
+  from strategies.registry import getStrategy
+
+  # 各戦略のequity curveを取得
+  returns = {}
+  for name in strategyNames:
+    strategy = getStrategy(name)
+    result = strategy.backtest(data.copy(), symbol="PORTFOLIO", interval="1d",
+                               capital=capital, fee=feePct)
+    eq = result.equity
+    returns[name] = eq.pct_change().fillna(0)
+
+  # ポートフォリオequityを構築
+  equity = capital
+  equityList = []
+
+  for i in range(len(data)):
+    portfolioReturn = sum(weights.get(name, 0) * returns[name].iloc[i] for name in strategyNames)
+    equity *= (1 + portfolioReturn)
+    equityList.append(equity)
+
+  eqSeries = pd.Series(equityList, index=data.index)
+  finalValue = equityList[-1] if equityList else capital
+  totalReturn = (finalValue - capital) / capital * 100
+  peak = eqSeries.expanding().max()
+  dd = (eqSeries - peak) / peak * 100
+  mdd = float(dd.min())
+
+  return {
+    "totalReturn": totalReturn,
+    "finalValue": finalValue,
+    "mdd": mdd,
+  }
+
+
+def _generateAllocationPatterns(strategyNames):
+  """N戦略から配分パターンを自動生成"""
+  n = len(strategyNames)
+  patterns = {}
+
+  # 等配分
+  eqWeight = round(1.0 / n, 2)
+  patterns["equal"] = {
+    "label": f"等配分 (1/{n})",
+    "weights": {name: eqWeight for name in strategyNames},
+  }
+
+  # 各戦略単独
+  for name in strategyNames:
+    patterns[f"solo_{name}"] = {
+      "label": f"{name}単独",
+      "weights": {name: 1.0, **{other: 0.0 for other in strategyNames if other != name}},
+    }
+
+  return patterns
+
+
+def _benchAllocation(args):
+  """汎用配分パターン比較ベンチ"""
+  import strategies
+  from strategies.registry import getStrategy
+  from simulator.scenario import SCENARIOS
+  from simulator.report import printBenchAllocation
+
+  # --strategies が指定されていれば汎用モード、なければDART
+  isDart = (args.strategies == "all")
+  if isDart:
+    strategyNames = ["bb", "ema_don", "bb_ls"]
+  else:
+    strategyNames = [s.strip() for s in args.strategies.split(",")]
+
+  print(f"  対象戦略: {', '.join(strategyNames)}")
+
+  # DART用: scenario.pyの既存ロジックを使用（高速・リバランスコスト込み）
+  if isDart:
+    from simulator.scenario import (
+      ALLOCATION_PATTERNS, runDynamicWeight,
+      _runBacktestOnData, _prepareBacktestData,
+    )
+    patterns = ALLOCATION_PATTERNS
+    allResults = {pKey: [] for pKey in patterns}
+
+    print("  シナリオ評価中...")
+    for sKey, sInfo in SCENARIOS.items():
+      precomputed = _prepareBacktestData(sKey, args.capital, args.fee, 50)
+      for pKey, pInfo in patterns.items():
+        if pInfo["type"] == "gradient":
+          result = runDynamicWeight(sKey, precomputed=precomputed,
+                                   gradientLevels=pInfo["levels"],
+                                   nanDefault=pInfo.get("nanDefault"))
+        else:
+          result = runDynamicWeight(sKey, precomputed=precomputed,
+                                   weights=pInfo["weights"])
+        allResults[pKey].append({
+          "scenarioKey": sKey,
+          "probability": sInfo["probability"],
+          **result,
+        })
+
+    realResult = {}
+    if args.years > 0:
+      print(f"  実データ評価中 ({args.years}年)...")
+      strategy = getStrategy("bb")
+      data = strategy.fetchData(symbol=args.symbol, interval="1d", years=args.years)
+      precomputed = _runBacktestOnData(data, args.capital, args.fee, 50)
+
+      for pKey, pInfo in patterns.items():
+        if pInfo["type"] == "gradient":
+          result = runDynamicWeight(precomputed=precomputed,
+                                   gradientLevels=pInfo["levels"],
+                                   nanDefault=pInfo.get("nanDefault"))
+        else:
+          result = runDynamicWeight(precomputed=precomputed,
+                                   weights=pInfo["weights"])
+        realResult[pKey] = result
+      realResult["_period"] = f"{data.index[0].strftime('%Y-%m-%d')} ~ {data.index[-1].strftime('%Y-%m-%d')}"
+      realResult["_btcChange"] = (data['close'].iloc[-1] - data['close'].iloc[0]) / data['close'].iloc[0] * 100
+
+    printBenchAllocation(patterns, allResults, SCENARIOS, realResult, args.years,
+                         title="DART配分パターン比較")
+
+    # bench共通保存
+    from simulator.report import saveBenchResult
+    from strategies.registry import getStrategy as _gs
+    versions = {n: _gs(n).version for n in strategyNames}
+    allocResults = {}
+    for pKey, pInfo in patterns.items():
+      results = allResults[pKey]
+      expected = sum(r["totalReturn"] * r["probability"] for r in results)
+      allocResults[pInfo["label"]] = {
+        "expectedReturn": round(expected, 2),
+        "realReturn": round(realResult[pKey]["totalReturn"], 2) if pKey in realResult and isinstance(realResult.get(pKey), dict) else None,
+        "realMdd": round(realResult[pKey]["mdd"], 2) if pKey in realResult and isinstance(realResult.get(pKey), dict) else None,
+      }
+    saveBenchResult(
+      "allocation", strategyNames, args.symbol, "1d", args.years,
+      results=allocResults, strategyVersions=versions,
+    )
+    return
+
+  # 汎用モード: 任意のN戦略の配分比較
+  patterns = _generateAllocationPatterns(strategyNames)
+  allResults = {pKey: [] for pKey in patterns}
+
+  # シナリオ評価
+  print("  シナリオ評価中...")
+  for sKey, sInfo in SCENARIOS.items():
+    data = sInfo["fn"]()
+    for pKey, pInfo in patterns.items():
+      result = _runPortfolioBacktest(
+        data, strategyNames, args.capital, args.fee, pInfo["weights"])
+      result["scenario"] = sInfo["name"]
+      result["scenarioKey"] = sKey
+      allResults[pKey].append({
+        "scenarioKey": sKey,
+        "probability": sInfo["probability"],
+        **result,
+      })
+
+  # 実データ評価
+  realResult = {}
+  if args.years > 0:
+    print(f"  実データ評価中 ({args.years}年)...")
+    strategy = getStrategy(strategyNames[0])
+    data = strategy.fetchData(symbol=args.symbol, interval="1d", years=args.years)
+
+    for pKey, pInfo in patterns.items():
+      result = _runPortfolioBacktest(
+        data, strategyNames, args.capital, args.fee, pInfo["weights"])
+      realResult[pKey] = result
+    realResult["_period"] = f"{data.index[0].strftime('%Y-%m-%d')} ~ {data.index[-1].strftime('%Y-%m-%d')}"
+    realResult["_btcChange"] = (data['close'].iloc[-1] - data['close'].iloc[0]) / data['close'].iloc[0] * 100
+
+  title = f"{'+'.join(strategyNames)} 配分比較"
+  printBenchAllocation(patterns, allResults, SCENARIOS, realResult, args.years,
+                       title=title)
+
+  # bench共通保存
+  from simulator.report import saveBenchResult
+  from strategies.registry import getStrategy as _gs
+  versions = {}
+  for n in strategyNames:
+    try:
+      versions[n] = _gs(n).version
+    except KeyError:
+      pass
+  allocResults = {}
+  for pKey, pInfo in patterns.items():
+    results = allResults[pKey]
+    expected = sum(r["totalReturn"] * r["probability"] for r in results)
+    allocResults[pInfo["label"]] = {
+      "expectedReturn": round(expected, 2),
+      "realReturn": round(realResult[pKey]["totalReturn"], 2) if pKey in realResult and isinstance(realResult.get(pKey), dict) else None,
+      "realMdd": round(realResult[pKey]["mdd"], 2) if pKey in realResult and isinstance(realResult.get(pKey), dict) else None,
+    }
+  saveBenchResult(
+    "allocation", strategyNames, args.symbol, "1d", args.years,
+    results=allocResults, strategyVersions=versions,
+  )
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +698,21 @@ def main():
   cmpParser.add_argument("--years", type=int, default=1, help="取得年数")
   cmpParser.add_argument("--capital", type=float, default=100_000, help="初期資金")
   cmpParser.add_argument("--fee", type=float, default=0.1, help="手数料 (%%)")
+  cmpParser.add_argument("--sl", type=float, default=None, help="ストップロス (%%)")
+  cmpParser.add_argument("--tp", type=float, default=None, help="テイクプロフィット (%%)")
   cmpParser.add_argument("--no-browser", action="store_true", help="ブラウザ自動オープンを抑制")
+
+  # bench
+  benchParser = sub.add_parser("bench", help="統一ベンチマーク（バックテスト/シナリオ）")
+  benchParser.add_argument("--type", default="backtest", choices=["backtest", "scenario", "allocation"], help="ベンチ種類")
+  benchParser.add_argument("--strategies", default="all", help="戦略名 (カンマ区切り / all / カテゴリ名)")
+  benchParser.add_argument("--symbol", default="BTCUSDT", help="銘柄")
+  benchParser.add_argument("--interval", default="1d", help="タイムフレーム")
+  benchParser.add_argument("--years", type=int, default=1, help="取得年数")
+  benchParser.add_argument("--capital", type=float, default=100_000, help="初期資金")
+  benchParser.add_argument("--fee", type=float, default=0.1, help="手数料 (%%)")
+  benchParser.add_argument("--sl", type=float, default=None, help="ストップロス (%%)")
+  benchParser.add_argument("--tp", type=float, default=None, help="テイクプロフィット (%%)")
 
   # live
   liveParser = sub.add_parser("live", help="リアルタイムペーパートレード")
@@ -344,6 +732,8 @@ def main():
     cmdRun(args)
   elif args.command == "compare":
     cmdCompare(args)
+  elif args.command == "bench":
+    cmdBench(args)
   elif args.command == "live":
     cmdLive(args)
 

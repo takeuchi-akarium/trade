@@ -41,7 +41,26 @@ python src/trader/run.py --daemon
 毎朝7:00にタスクスケジューラで自動実行される（`setup_tasks.ps1` で登録）。
 `config.yaml` の `dry_run: true` の間は注文は出ない。
 
-### バックテスト
+### ベンチマーク（戦略評価）
+
+```bash
+# 全戦略一括ベンチ（実データ）— テーブル+示唆が出る
+python src/simulator/runner.py bench --type backtest --strategies all --years 3
+
+# DART vs サブ戦略
+python src/simulator/runner.py bench --type backtest --strategies dart,bb,ema_don,bb_ls --years 3
+
+# シナリオベンチ（合成データ6パターン）
+python src/simulator/runner.py bench --type scenario --strategies dart,bb,ema_don --sl 5.0
+
+# 配分パターン比較（DART: 段階制 vs 現行 vs 得意のみ）
+python src/simulator/runner.py bench --type allocation --years 3
+
+# 配分パターン比較（任意の戦略: 等配分 vs 各単独）
+python src/simulator/runner.py bench --type allocation --strategies rsi,bb,ema --years 1
+```
+
+### バックテスト（個別実行）
 
 ```bash
 # 登録済み戦略の一覧
@@ -125,6 +144,7 @@ data/
 | `btc_ma` | BTC MAクロス (Mid-Band Exit) | 長期 |
 | `dual_momentum` | デュアルモメンタム (GEM) | 長期 |
 | `leadlag` | 日米リードラグ (PCA) | 長期 |
+| `dart` | DART段階制 (bb+ema_don+bb_ls 動的配分) | 複合 |
 | `pair_bb` / `pair_ema` | ペアトレード | ペア |
 
 `_ls` 付きはロング/ショート両対応。
@@ -235,6 +255,7 @@ signal:
 - [x] Webダッシュボード
 - [x] 戦略パッケージ化（プラグイン方式）
 - [x] 統一シミュレーションCLI
+- [x] 統一ベンチマーク（bench: バックテスト/シナリオ一括評価+示唆）
 - [x] GMOコイン API連携・自動売買エンジン
 - [x] 複数戦略同時稼働（BB L/S + Grid）
 - [ ] 本番自動売買開始（口座開設待ち）
