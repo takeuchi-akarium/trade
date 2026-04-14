@@ -48,6 +48,7 @@ python src/web/app.py
 # http://localhost:5000             ← メインダッシュボード
 # http://localhost:5000/simulations ← シミュレーション結果
 # http://localhost:5000/trade-journal ← トレード判断記録
+# http://localhost:5000/bench       ← ベンチマーク実行・結果確認
 ```
 
 ### DART戦略 (Dynamic Adaptive Regime Trading)
@@ -103,7 +104,20 @@ rm -rf data/cache/              # 全キャッシュ
 
 ## ベンチマーク (bench)
 
-戦略の定量評価を統一フォーマットで実行する。結果テーブル+示唆が自動出力される。
+戦略の定量評価を統一フォーマットで実行する。CLIまたはWebダッシュボードから実行可能。
+
+### Webダッシュボード
+
+`http://localhost:5000/bench` でベンチマークの実行と結果確認ができる。
+
+- **実行フォーム**: type / strategies / symbol / interval / years / SL / TP を指定して Run
+- **結果一覧**: `data/simulations/bench/` に保存された過去の結果をカード表示。クリックで詳細テーブル展開
+  - backtest → リターン降順テーブル + 月次リターン
+  - scenario → 確率加重リターン + シナリオ別リターン
+  - allocation → 配分パターン比較（期待/実データリターン・MDD）
+- 実行はサブプロセスで非同期。完了後にCLI出力とresultsを自動更新
+
+### CLI
 
 ### 3つのベンチタイプ
 

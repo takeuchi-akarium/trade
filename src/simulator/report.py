@@ -429,7 +429,8 @@ def _benchFileName(benchType: str, strategies: list[str], symbol: str,
 
 def saveBenchResult(benchType: str, strategies: list[str], symbol: str,
                     interval: str, years: int, sl: float = None, tp: float = None,
-                    results: dict = None, strategyVersions: dict = None) -> Path:
+                    results: dict = None, strategyVersions: dict = None,
+                    changelogs: dict = None) -> Path:
   """ベンチ結果を共通フォーマットで保存（同条件は上書き）"""
   BENCH_DIR.mkdir(parents=True, exist_ok=True)
   filename = _benchFileName(benchType, strategies, symbol, interval, years, sl, tp)
@@ -444,6 +445,7 @@ def saveBenchResult(benchType: str, strategies: list[str], symbol: str,
     "sl": sl,
     "tp": tp,
     "strategyVersions": strategyVersions or {},
+    "changelogs": changelogs or {},
     "results": results or {},
     "savedAt": datetime.now().isoformat(),
   }

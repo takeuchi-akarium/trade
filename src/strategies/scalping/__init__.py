@@ -55,6 +55,15 @@ def _runBacktestLS(df, initialCapital, feePct, slPct, tpPct):
 class ScalpingStrategy(Strategy):
   """テクニカル指標ベースの短期売買戦略"""
 
+  version = "2.0.0"
+  changelog = [
+    {"version": "2.0.0", "date": "2026-04-14", "changes": [
+      "約定を翌足始値(open)に変更（同一足close約定を廃止、look-ahead bias修正）",
+      "SL/TPを日中安値(low)/高値(high)で判定（closeのみの判定を廃止）",
+    ]},
+    {"version": "1.0.0", "date": "2026-04-01", "changes": ["初版"]},
+  ]
+
   def __init__(self, key: str, name: str, defaults: dict):
     self.name = key
     self.description = name
@@ -99,6 +108,14 @@ class ScalpingStrategy(Strategy):
 
 class ScalpingStrategyLS(Strategy):
   """テクニカル指標ベース ロング/ショート両対応"""
+  version = "2.0.0"
+  changelog = [
+    {"version": "2.0.0", "date": "2026-04-14", "changes": [
+      "約定を翌足始値(open)に変更（同一足close約定を廃止、look-ahead bias修正）",
+      "SL/TPを日中安値(low)/高値(high)で判定（closeのみの判定を廃止）",
+    ]},
+    {"version": "1.0.0", "date": "2026-04-01", "changes": ["初版"]},
+  ]
 
   def __init__(self, key: str, name: str, defaults: dict):
     self.name = f"{key}_ls"
