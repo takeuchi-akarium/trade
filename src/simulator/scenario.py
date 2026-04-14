@@ -335,22 +335,25 @@ ALLOCATION_PATTERNS = {
   "gradient": {
     "label": "段階制",
     "type": "gradient",
-    # 乖離率の閾値で参加戦略数が変わる
+    # 乖離率の閾値で参加戦略数を動的に変える
     # (bb, ema_don, bb_ls)
+    # v2.2: シナリオ探索で最適化 (bb厚め+hys4日)
     "levels": {
-      # SMA50乖離率 > +5%: 強uptrend → ema_don単独
-      "strong_up":   {"threshold": 5.0,  "weights": (0.00, 1.00, 0.00)},
-      # +2% ~ +5%: 通常uptrend → ema_don主力 + bb補助
-      "uptrend":     {"threshold": 2.0,  "weights": (0.20, 0.80, 0.00)},
-      # -2% ~ +2%: range → 3戦略分散
-      "range":       {"threshold": -2.0, "weights": (0.60, 0.10, 0.30)},
-      # -5% ~ -2%: 通常downtrend → bb_ls単独
-      "downtrend":   {"threshold": -5.0, "weights": (0.00, 0.00, 1.00)},
-      # < -5%: 強downtrend → 全退避
+      # SMA50乖離率 > +8%: 強uptrend → ema_don単独
+      "strong_up":   {"threshold": 8.0,  "weights": (0.00, 1.00, 0.00)},
+      # +3% ~ +8%: 通常uptrend → ema_don主力 + bb補助
+      "uptrend":     {"threshold": 3.0,  "weights": (0.30, 0.70, 0.00)},
+      # -3% ~ +3%: range → bb主力 + ema_don補助
+      "range":       {"threshold": -3.0, "weights": (0.70, 0.30, 0.00)},
+      # -8% ~ -3%: 通常downtrend → bb押し目のみ（縮小ポジション）
+      "downtrend":   {"threshold": -8.0, "weights": (0.50, 0.00, 0.00)},
+      # < -8%: 強downtrend → 全退避
       "strong_down": {"threshold": None, "weights": (0.00, 0.00, 0.00)},
     },
     # NaN/無効値時のデフォルトweight
-    "nanDefault": (0.60, 0.10, 0.30),
+    "nanDefault": (0.70, 0.30, 0.00),
+    # レジーム遷移のヒステリシス（N日連続で閾値を超えたら遷移）
+    "hysteresis": 4,
   },
 }
 
@@ -366,6 +369,7 @@ def _sortLevels(levels: dict) -> list:
 
 # gradient用のソート済みレベルをモジュールレベルでキャッシュ
 _GRADIENT_SORTED = _sortLevels(ALLOCATION_PATTERNS["gradient"]["levels"])
+_GRADIENT_HYSTERESIS = ALLOCATION_PATTERNS["gradient"].get("hysteresis", 1)
 
 
 def detectRegime(close: float, trendMa: float) -> str:
@@ -412,7 +416,8 @@ def _runBacktestOnData(data, initialCapital: float, feePct: float, trendMaPeriod
   dfEma = emaStrategy.generateSignals(data.copy(), short=10, long=50)
   dfBbLs = bbLsStrategy.generateSignals(data.copy())
 
-  trendMa = data["close"].rolling(trendMaPeriod).mean()
+  # shift(1): 前日までのデータでレジーム判定（look-ahead bias防止）
+  trendMa = data["close"].rolling(trendMaPeriod).mean().shift(1)
 
   _, eqBb = runBacktest(dfBb, initialCapital, feePct)
   _, eqEma = runBacktest(dfEma, initialCapital, feePct)
@@ -457,25 +462,53 @@ def runDynamicWeight(scenarioKey: str = None, initialCapital: float = 100_000,
   else:
     sortedLevels = None
 
+  # ヒステリシス: N日連続で同じweightが示されたら遷移
+  hysteresis = ALLOCATION_PATTERNS["gradient"].get("hysteresis", 1) if gradientLevels is None or gradientLevels is ALLOCATION_PATTERNS["gradient"]["levels"] else 1
+
   # 比率変動制でequityを構築
   equity = initialCapital
   equityList = []
   regimeHistory = []
   prevWeights = None
+  candidateWeights = None
+  candidateCount = 0
 
+  # 前日の終値でレジーム判定（当日のリターンに適用）
+  prevClose = data["close"].shift(1)
   for i in range(len(data)):
-    close = data["close"].iloc[i]
+    close = prevClose.iloc[i] if i > 0 and not np.isnan(prevClose.iloc[i]) else data["close"].iloc[i]
     ma = trendMa.iloc[i]
 
     if sortedLevels:
-      wBb, wEma, wBbLs = _gradientWeights(close, ma, sortedLevels, nanDefault)
+      rawWeights = _gradientWeights(close, ma, sortedLevels, nanDefault)
       regime = detectRegime(close, ma)
     else:
       regime = detectRegime(close, ma)
-      wBb, wEma, wBbLs = (weights or REGIME_WEIGHTS)[regime]
+      rawWeights = (weights or REGIME_WEIGHTS)[regime]
+
+    # ヒステリシス適用
+    if prevWeights is None:
+      curWeights = rawWeights
+    elif rawWeights == prevWeights:
+      curWeights = prevWeights
+      candidateWeights = None
+      candidateCount = 0
+    elif rawWeights == candidateWeights:
+      candidateCount += 1
+      if candidateCount >= hysteresis:
+        curWeights = rawWeights
+        candidateWeights = None
+        candidateCount = 0
+      else:
+        curWeights = prevWeights
+    else:
+      candidateWeights = rawWeights
+      candidateCount = 1
+      curWeights = prevWeights
+
+    wBb, wEma, wBbLs = curWeights
 
     # weight変化量に比例したリバランスコスト
-    curWeights = (wBb, wEma, wBbLs)
     if prevWeights is not None and curWeights != prevWeights:
       weightDelta = sum(abs(a - b) for a, b in zip(curWeights, prevWeights))
       rebalanceCost = equity * feePct / 100 * weightDelta

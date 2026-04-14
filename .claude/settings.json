@@ -63,7 +63,8 @@
     ],
     "default": [
       { "behavior": "allow", "tools": ["Read", "Glob", "Grep"] },
-      { "behavior": "allow", "tools": ["Edit", "Write"] }
+      { "behavior": "allow", "tools": ["Edit", "Write"] },
+      { "behavior": "allow", "tools": ["Bash(cd G:\\workspace\\trade && .venv/Scripts/python*)"] }
     ]
   },
   "env": {

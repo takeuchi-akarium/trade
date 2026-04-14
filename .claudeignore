@@ -30,3 +30,14 @@ coverage/
 *.pdf
 *.zip
 *.tar.gz
+
+# データファイル（パス指定すれば読める）
+data/**/*.csv
+data/**/*.json
+data/**/*.html
+
+# アドホック分析スクリプト
+src/analysis/
+
+# 生成済みHTML
+docs/*.html

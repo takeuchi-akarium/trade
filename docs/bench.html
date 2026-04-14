@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bench</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e1e4eb; --muted: #8b8fa3;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.4;
+  }
+  .header {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; }
+  .header nav { display: flex; gap: 16px; }
+  .header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header a:hover { color: var(--text); }
+
+  .container { padding: 16px 20px; max-width: 1400px; margin: 0 auto; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px;
+  }
+
+  /* ── Run Form ── */
+  .run-form {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .form-row {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label {
+    font-size: 11px; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .form-group select,
+  .form-group input {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 7px 10px;
+    font-size: 13px; outline: none; min-width: 100px;
+  }
+  .form-group select:focus,
+  .form-group input:focus { border-color: var(--blue); }
+
+  .btn {
+    padding: 7px 18px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-muted { background: var(--border); color: var(--text); }
+
+  /* ── Status bar ── */
+  .status-bar {
+    margin-top: 10px; padding: 10px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 13px; display: none;
+  }
+  .status-bar.show { display: flex; align-items: center; gap: 10px; }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--border);
+    border-top-color: var(--blue); border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Results Grid ── */
+  .results-grid {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .result-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; cursor: pointer;
+    transition: border-color .15s;
+  }
+  .result-card:hover { border-color: #555; }
+  .result-card.active { border-color: var(--yellow); }
+
+  .result-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .result-card-title { font-size: 14px; font-weight: 600; }
+  .result-card-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 4px;
+    font-weight: 600; text-transform: uppercase;
+  }
+  .badge-backtest { background: #1e3a5f; color: var(--blue); }
+  .badge-scenario { background: #3b2f1a; color: var(--yellow); }
+  .badge-allocation { background: #1a3b2f; color: var(--green); }
+
+  .result-card-meta {
+    font-size: 12px; color: var(--muted); display: flex; gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  /* ── Result Table ── */
+  .result-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .result-table th {
+    text-align: left; padding: 8px 10px; font-size: 11px;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .result-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .result-table tr:last-child td { border-bottom: none; }
+  .result-table tr:hover { background: rgba(255,255,255,.03); }
+
+  .val-pos { color: var(--green); }
+  .val-neg { color: var(--red); }
+
+  /* ── Output panel ── */
+  .output-panel {
+    margin-top: 12px; display: none;
+  }
+  .output-panel.show { display: block; }
+  .output-pre {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px; font-size: 12px;
+    font-family: "Cascadia Code", "Fira Code", monospace;
+    white-space: pre-wrap; word-break: break-all;
+    max-height: 400px; overflow-y: auto; color: var(--muted);
+  }
+
+  .empty-msg {
+    text-align: center; color: var(--muted); padding: 40px;
+    font-size: 14px;
+  }
+
+  /* ── Guide ── */
+  .guide {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .guide-toggle {
+    padding: 10px 16px; cursor: pointer; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); user-select: none;
+  }
+  .guide-toggle:hover { color: var(--text); }
+  .guide-body {
+    display: none; padding: 0 16px 14px;
+  }
+  .guide-body.open { display: block; }
+  .guide-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  .guide-table th {
+    text-align: left; padding: 6px 8px; font-size: 11px;
+    border-bottom: 1px solid var(--border); font-weight: 700;
+  }
+  .guide-table td {
+    padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+  }
+  .guide-table td:first-child { white-space: nowrap; font-weight: 600; min-width: 110px; }
+  .guide-table code {
+    background: var(--bg); padding: 1px 5px; border-radius: 3px;
+    font-size: 11px; font-family: "Cascadia Code", monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Bench</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/simulations">Simulations</a>
+    <a href="/trader">Trader</a>
+    <a href="/gap-scan">Gap Scan</a>
+    <a href="/trade-journal">Journal</a>
+    <a href="/bench">Bench</a>
+  </nav>
+</div>
+
+<div class="container">
+  <!-- Usage Guide -->
+  <div class="section-label">Usage Guide</div>
+  <div class="guide" id="guidePanel">
+    <div class="guide-toggle" onclick="toggleGuide()">
+      <span>使い方を表示</span>
+      <span id="guideArrow" style="transition:transform .2s">&#9654;</span>
+    </div>
+    <div class="guide-body" id="guideBody">
+      <table class="guide-table">
+        <tr><th colspan="2" style="color:var(--blue)">3つのベンチタイプ</th></tr>
+        <tr><td><b>backtest</b></td><td>実データで戦略のパフォーマンスを評価。リターン・MDD・Sharpe・月次リターン等を出力</td></tr>
+        <tr><td><b>scenario</b></td><td>合成データ6パターン（下落・レンジ・V字回復・ダラダラ下落・バブル崩壊・レンジブレイク）で相場耐性を評価</td></tr>
+        <tr><td><b>allocation</b></td><td>配分パターン比較。strategies=all → DART専用モード（現行ミックス/得意戦略のみ/段階制）、それ以外 → 等配分 vs 各戦略単独</td></tr>
+      </table>
+      <table class="guide-table" style="margin-top:10px">
+        <tr><th colspan="2" style="color:var(--blue)">Strategies の指定方法</th></tr>
+        <tr><td><code>all</code></td><td>全登録戦略</td></tr>
+        <tr><td><code>short_term</code></td><td>カテゴリ名で一括指定（short_term / long_term / composite / pair）</td></tr>
+        <tr><td><code>rsi,bb,ema</code></td><td>戦略名をカンマ区切りで個別指定</td></tr>
+        <tr><td><code>dart,bb,ema_don</code></td><td>DART含む場合はDART+サブ戦略を指定</td></tr>
+      </table>
+      <table class="guide-table" style="margin-top:10px">
+        <tr><th colspan="2" style="color:var(--blue)">パラメータ</th></tr>
+        <tr><td><b>Symbol</b></td><td>銘柄（デフォルト: BTCUSDT）</td></tr>
+        <tr><td><b>Interval</b></td><td>時間足（1d / 4h / 1h）</td></tr>
+        <tr><td><b>Years</b></td><td>評価期間（年数）</td></tr>
+        <tr><td><b>SL %</b></td><td>ストップロス。空欄=なし</td></tr>
+        <tr><td><b>TP %</b></td><td>テイクプロフィット。空欄=なし</td></tr>
+      </table>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">
+        <b>Tips:</b> 結果は <code>data/simulations/bench/</code> に自動保存。同条件は上書き。カードをクリックで詳細テーブル展開。
+      </div>
+    </div>
+  </div>
+
+  <!-- Run Form -->
+  <div class="section-label">Run Benchmark</div>
+  <div class="run-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Type</label>
+        <select id="benchType">
+          <option value="backtest">Backtest</option>
+          <option value="scenario">Scenario</option>
+          <option value="allocation">Allocation</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Strategies</label>
+        <input id="benchStrategies" type="text" value="all" placeholder="all / short_term / rsi,bb">
+      </div>
+      <div class="form-group">
+        <label>Symbol</label>
+        <input id="benchSymbol" type="text" value="BTCUSDT" style="min-width:90px">
+      </div>
+      <div class="form-group">
+        <label>Interval</label>
+        <select id="benchInterval">
+          <option value="1d">1d</option>
+          <option value="4h">4h</option>
+          <option value="1h">1h</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Years</label>
+        <input id="benchYears" type="number" value="1" min="1" max="10" style="width:70px">
+      </div>
+      <div class="form-group">
+        <label>SL %</label>
+        <input id="benchSl" type="number" step="0.1" placeholder="-" style="width:70px">
+      </div>
+      <div class="form-group">
+        <label>TP %</label>
+        <input id="benchTp" type="number" step="0.1" placeholder="-" style="width:70px">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" id="btnRun" onclick="runBench()">Run</button>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="spinner" id="statusSpinner"></div>
+      <span id="statusText">実行中...</span>
+      <span id="elapsedText" style="color:var(--muted);font-size:12px;margin-left:auto"></span>
+      <button class="btn btn-muted" id="btnCancel" style="padding:4px 12px;font-size:12px;display:none" onclick="cancelBench()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Output panel (shows after run completes) -->
+  <div class="output-panel" id="outputPanel">
+    <div class="section-label">
+      Output
+      <button class="btn btn-muted" style="margin-left:8px;padding:3px 10px;font-size:11px" onclick="toggleOutput()">Toggle</button>
+    </div>
+    <pre class="output-pre" id="outputPre"></pre>
+  </div>
+
+  <!-- Saved Results -->
+  <div class="section-label">Saved Results</div>
+  <div id="resultsContainer" class="results-grid">
+    <div class="empty-msg">読み込み中...</div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ── Load saved results ──
+
+async function loadResults() {
+  try {
+    const resp = await fetch("/api/bench");
+    const data = await resp.json();
+    renderResults(data.results || []);
+  } catch (e) {
+    $("resultsContainer").innerHTML = '<div class="empty-msg">読み込みに失敗しました</div>';
+  }
+}
+
+function renderResults(results) {
+  const c = $("resultsContainer");
+  if (!results.length) {
+    c.innerHTML = '<div class="empty-msg">保存済みベンチ結果がありません</div>';
+    return;
+  }
+
+  c.innerHTML = results.map((r, i) => {
+    const type = r.benchType || "unknown";
+    const badgeCls = type === "backtest" ? "badge-backtest"
+      : type === "scenario" ? "badge-scenario" : "badge-allocation";
+
+    const strats = (r.strategies || []).join(", ");
+    const saved = r.savedAt ? new Date(r.savedAt).toLocaleString("ja-JP") : "";
+    const slTp = [
+      r.sl != null ? `SL:${r.sl}%` : null,
+      r.tp != null ? `TP:${r.tp}%` : null,
+    ].filter(Boolean).join(" ");
+
+    return `
+      <div class="result-card" data-idx="${i}" onclick="toggleCard(this, ${i})">
+        <div class="result-card-header">
+          <span class="result-card-title">${strats}</span>
+          <span class="result-card-badge ${badgeCls}">${type}</span>
+        </div>
+        <div class="result-card-meta">
+          <span>${r.symbol || ""} / ${r.interval || ""} / ${r.years || ""}y</span>
+          ${slTp ? `<span>${slTp}</span>` : ""}
+          <span>${saved}</span>
+        </div>
+        <div id="detail-${i}" style="display:none"></div>
+      </div>`;
+  }).join("");
+
+  // store data for detail rendering
+  window._benchResults = results;
+}
+
+function toggleCard(el, idx) {
+  const detail = $(`detail-${idx}`);
+  const wasOpen = detail.style.display !== "none";
+
+  // close all
+  document.querySelectorAll(".result-card").forEach(c => {
+    c.classList.remove("active");
+    const d = c.querySelector("[id^='detail-']");
+    if (d) d.style.display = "none";
+  });
+
+  if (!wasOpen) {
+    el.classList.add("active");
+    detail.style.display = "block";
+    if (!detail.innerHTML) {
+      detail.innerHTML = renderDetail(window._benchResults[idx]);
+    }
+  }
+}
+
+function renderDetail(r) {
+  const type = r.benchType;
+  const results = r.results || {};
+  const keys = Object.keys(results);
+  if (!keys.length) return '<div style="color:var(--muted);padding:8px">データなし</div>';
+
+  if (type === "backtest") return renderBacktestTable(results, keys);
+  if (type === "scenario") return renderScenarioTable(results, keys);
+  if (type === "allocation") return renderAllocationTable(results, keys);
+  return '<div style="color:var(--muted);padding:8px">不明なタイプ</div>';
+}
+
+function valColor(v) {
+  if (v == null) return "";
+  return v >= 0 ? "val-pos" : "val-neg";
+}
+function fmt(v, decimals = 2) {
+  if (v == null || v === undefined) return "-";
+  return Number(v).toFixed(decimals);
+}
+
+function renderBacktestTable(results, keys) {
+  // Sort by totalReturn desc
+  keys.sort((a, b) => (results[b].totalReturn || 0) - (results[a].totalReturn || 0));
+
+  let html = `<table class="result-table">
+    <tr>
+      <th>Strategy</th><th>Return %</th><th>Annual %</th>
+      <th>MDD %</th><th>Sharpe</th><th>Trades</th>
+      <th>Win Rate</th><th>PF</th>
+    </tr>`;
+
+  for (const key of keys) {
+    const m = results[key];
+    html += `<tr>
+      <td style="font-weight:600">${key}</td>
+      <td class="${valColor(m.totalReturn)}">${fmt(m.totalReturn)}</td>
+      <td class="${valColor(m.annualReturn)}">${fmt(m.annualReturn)}</td>
+      <td class="val-neg">${fmt(m.mdd)}</td>
+      <td>${fmt(m.sharpe)}</td>
+      <td>${m.totalTrades ?? "-"}</td>
+      <td>${m.winRate != null ? fmt(m.winRate, 1) + "%" : "-"}</td>
+      <td>${m.profitFactor != null ? fmt(m.profitFactor) : "-"}</td>
+    </tr>`;
+  }
+
+  // Monthly heatmap
+  const allMonths = new Set();
+  for (const key of keys) {
+    const ms = results[key].monthlyStats || [];
+    ms.forEach(m => allMonths.add(m.month));
+  }
+  const months = [...allMonths].sort();
+
+  if (months.length > 0) {
+    html += `</table>
+      <div style="margin-top:14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Monthly Returns %</div>
+      <div style="overflow-x:auto">
+      <table class="result-table">
+      <tr><th>Strategy</th>`;
+    months.forEach(m => html += `<th>${m.slice(5)}</th>`);
+    html += `</tr>`;
+
+    for (const key of keys) {
+      const ms = results[key].monthlyStats || [];
+      const byMonth = {};
+      ms.forEach(m => byMonth[m.month] = m.return != null ? m.return : null);
+      html += `<tr><td style="font-weight:600">${key}</td>`;
+      months.forEach(m => {
+        const v = byMonth[m];
+        html += `<td class="${valColor(v)}">${v != null ? fmt(v, 1) : "-"}</td>`;
+      });
+      html += `</tr>`;
+    }
+  }
+
+  html += `</table></div>`;
+  return html;
+}
+
+function renderScenarioTable(results, keys) {
+  let html = `<table class="result-table"><tr><th>Strategy</th><th>Expected Return %</th>`;
+
+  // Detect scenario keys from first entry
+  const firstResult = results[keys[0]] || {};
+  const scenarios = Object.keys(firstResult.perScenario || {});
+  scenarios.forEach(s => html += `<th>${s}</th>`);
+  html += `</tr>`;
+
+  keys.sort((a, b) => (results[b].expectedReturn || 0) - (results[a].expectedReturn || 0));
+
+  for (const key of keys) {
+    const m = results[key];
+    html += `<tr>
+      <td style="font-weight:600">${key}</td>
+      <td class="${valColor(m.expectedReturn)}">${fmt(m.expectedReturn)}</td>`;
+    scenarios.forEach(s => {
+      const v = (m.perScenario || {})[s];
+      html += `<td class="${valColor(v)}">${fmt(v)}</td>`;
+    });
+    html += `</tr>`;
+  }
+
+  html += `</table>`;
+  return html;
+}
+
+function renderAllocationTable(results, keys) {
+  const hasReal = keys.some(k => results[k].realReturn != null);
+
+  let html = `<table class="result-table"><tr>
+    <th>Pattern</th><th>Expected Return %</th>`;
+  if (hasReal) html += `<th>Real Return %</th><th>Real MDD %</th>`;
+  html += `</tr>`;
+
+  // Sort by expectedReturn desc
+  keys.sort((a, b) => (results[b].expectedReturn || 0) - (results[a].expectedReturn || 0));
+
+  for (const key of keys) {
+    const m = results[key];
+    html += `<tr>
+      <td style="font-weight:600">${key}</td>
+      <td class="${valColor(m.expectedReturn)}">${fmt(m.expectedReturn)}</td>`;
+    if (hasReal) {
+      html += `<td class="${valColor(m.realReturn)}">${fmt(m.realReturn)}</td>
+        <td class="val-neg">${fmt(m.realMdd)}</td>`;
+    }
+    html += `</tr>`;
+  }
+
+  html += `</table>`;
+  return html;
+}
+
+// ── Run bench ──
+
+let pollTimer = null;
+let elapsedTimer = null;
+let benchStartTime = null;
+
+function fmtElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+function startElapsedTimer(startedAt) {
+  benchStartTime = startedAt ? new Date(startedAt) : new Date();
+  $("elapsedText").textContent = "0s";
+  $("btnCancel").style.display = "inline-block";
+  elapsedTimer = setInterval(() => {
+    const elapsed = Date.now() - benchStartTime.getTime();
+    $("elapsedText").textContent = fmtElapsed(elapsed);
+  }, 1000);
+}
+
+function stopElapsedTimer() {
+  clearInterval(elapsedTimer);
+  $("btnCancel").style.display = "none";
+}
+
+async function runBench() {
+  const btn = $("btnRun");
+  btn.disabled = true;
+
+  const body = {
+    type: $("benchType").value,
+    strategies: $("benchStrategies").value.trim() || "all",
+    symbol: $("benchSymbol").value.trim() || "BTCUSDT",
+    interval: $("benchInterval").value,
+    years: parseInt($("benchYears").value) || 1,
+  };
+  const sl = $("benchSl").value;
+  const tp = $("benchTp").value;
+  if (sl) body.sl = parseFloat(sl);
+  if (tp) body.tp = parseFloat(tp);
+
+  const bar = $("statusBar");
+  bar.classList.add("show");
+  bar.style.borderColor = "";
+  $("statusText").textContent = `${body.type} 実行中... (${body.strategies})`;
+  $("statusSpinner").style.display = "block";
+
+  // Hide output panel during run
+  $("outputPanel").classList.remove("show");
+
+  try {
+    const resp = await fetch("/api/bench/run", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      $("statusText").textContent = data.error || "エラー";
+      $("statusSpinner").style.display = "none";
+      btn.disabled = false;
+      return;
+    }
+    startElapsedTimer(data.startedAt);
+    pollTimer = setInterval(pollStatus, 2000);
+  } catch (e) {
+    $("statusText").textContent = "リクエスト失敗";
+    $("statusSpinner").style.display = "none";
+    btn.disabled = false;
+  }
+}
+
+async function cancelBench() {
+  $("btnCancel").disabled = true;
+  try {
+    const resp = await fetch("/api/bench/cancel", { method: "POST" });
+    const data = await resp.json();
+    if (data.ok) {
+      $("statusText").textContent = "キャンセル中...";
+    }
+  } catch (e) {}
+  $("btnCancel").disabled = false;
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch("/api/bench/status");
+    const data = await resp.json();
+
+    if (data.running) return; // still running
+
+    // Done
+    clearInterval(pollTimer);
+    stopElapsedTimer();
+    $("statusSpinner").style.display = "none";
+    $("btnRun").disabled = false;
+
+    if (data.finished) {
+      const ok = data.returnCode === 0;
+      const cancelled = data.returnCode !== 0 && data.cancelled;
+      const elapsed = fmtElapsed(Date.now() - benchStartTime.getTime());
+
+      if (cancelled) {
+        $("statusText").textContent = `キャンセル (${elapsed})`;
+        $("statusBar").style.borderColor = "var(--yellow)";
+      } else {
+        $("statusText").textContent = ok ? `完了 (${elapsed})` : `エラー code:${data.returnCode} (${elapsed})`;
+        $("statusBar").style.borderColor = ok ? "var(--green)" : "var(--red)";
+      }
+
+      if (data.output) {
+        $("outputPre").textContent = data.output;
+        $("outputPanel").classList.add("show");
+      }
+
+      if (ok) loadResults();
+    } else {
+      $("statusText").textContent = "完了";
+    }
+
+    setTimeout(() => { $("statusBar").style.borderColor = ""; }, 5000);
+  } catch (e) {}
+}
+
+function toggleOutput() {
+  const pre = $("outputPre");
+  pre.style.display = pre.style.display === "none" ? "block" : "none";
+}
+
+// ── Check if bench already running on load ──
+
+async function checkRunning() {
+  try {
+    const resp = await fetch("/api/bench/status");
+    const data = await resp.json();
+    if (data.running) {
+      $("btnRun").disabled = true;
+      $("statusBar").classList.add("show");
+      $("statusSpinner").style.display = "block";
+      $("statusText").textContent = `${data.args?.type || "bench"} 実行中... (${data.args?.strategies || ""})`;
+      startElapsedTimer(data.startedAt);
+      pollTimer = setInterval(pollStatus, 2000);
+    }
+  } catch (e) {}
+}
+
+// ── Guide toggle ──
+function toggleGuide() {
+  const body = $("guideBody");
+  const arrow = $("guideArrow");
+  const open = body.classList.toggle("open");
+  arrow.style.transform = open ? "rotate(90deg)" : "";
+}
+
+// ── Init ──
+loadResults();
+checkRunning();
+</script>
+</body>
+</html>

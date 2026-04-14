@@ -223,11 +223,16 @@ def _benchBacktest(args, strategyList):
     from simulator.report import saveBenchResult
     stratNames = [r.strategyName for r in results]
     versions = {r.strategyName: next(s.version for s in strategyList if s.name == r.strategyName) for r in results}
+    changelogs = {}
+    for s in strategyList:
+      if hasattr(s, "changelog") and s.changelog:
+        changelogs[s.name] = s.changelog
     saveBenchResult(
       "backtest", stratNames, args.symbol, args.interval, args.years,
       sl=args.sl, tp=args.tp,
       results={r.strategyName: r.metrics for r in results},
       strategyVersions=versions,
+      changelogs=changelogs,
     )
 
 

@@ -31,6 +31,7 @@ class Strategy(ABC):
   description: str = ""
   category: str = ""  # "short_term", "long_term", "pair", "macro"
   version: str = "1.0.0"
+  changelog: list = []  # [{"version": "2.0.0", "date": "2026-04-14", "changes": ["..."]}]
   defaultParams: dict = {}
 
   @abstractmethod

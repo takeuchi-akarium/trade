@@ -480,6 +480,325 @@ def apiDartModeToggle():
   return jsonify({"dryRun": newVal})
 
 
+# ── Manual Simulation (手動売買シミュレーション) ──
+
+import threading
+
+MANUAL_SIM_FILE = TRADER_DIR / "manual_sim.json"
+_msLock = threading.Lock()
+
+# 初期残高は起動時に1回だけ読み込む
+def _loadInitBalance():
+  from common.config_loader import load_config
+  config = load_config()
+  return config.get("trader", {}).get("dry_run_balance", 50000)
+
+_MS_INIT_BALANCE = _loadInitBalance()
+
+
+def loadManualSim():
+  """手動シミュレーション状態を読み込み。なければ初期状態を返す"""
+  default = {
+    "initialBalance": _MS_INIT_BALANCE,
+    "balance": _MS_INIT_BALANCE,
+    "positions": [],
+    "closedTrades": [],
+  }
+  data = loadJson(MANUAL_SIM_FILE)
+  if data is None:
+    return default
+  return data
+
+
+def saveManualSim(data):
+  """手動シミュレーション状態を保存"""
+  MANUAL_SIM_FILE.parent.mkdir(parents=True, exist_ok=True)
+  MANUAL_SIM_FILE.write_text(
+    json.dumps(data, indent=2, ensure_ascii=False, default=str),
+    encoding="utf-8",
+  )
+
+
+@app.route("/api/manual-sim")
+def apiManualSim():
+  """手動シミュレーション状態を返す"""
+  data = loadManualSim()
+  return jsonify(data)
+
+
+@app.route("/api/manual-sim/buy", methods=["POST"])
+def apiManualSimBuy():
+  """手動ロング（買い）"""
+  body = flaskRequest.get_json(silent=True) or {}
+  try:
+    size = float(body.get("size", 0))
+    price = float(body.get("price", 0))
+  except (ValueError, TypeError):
+    return jsonify({"error": "size と price は数値が必要です"}), 400
+  if size <= 0 or price <= 0:
+    return jsonify({"error": "size と price は正の値が必要です"}), 400
+
+  import uuid
+  with _msLock:
+    data = loadManualSim()
+    cost = price * size
+    if cost > data["balance"]:
+      return jsonify({"error": f"残高不足: 必要 {cost:.0f}円 / 残高 {data['balance']:.0f}円"}), 400
+
+    now = datetime.now(timezone(timedelta(hours=9))).isoformat()
+    posId = uuid.uuid4().hex[:12] + "_L"
+    data["balance"] -= cost
+    data["positions"].append({
+      "id": posId,
+      "type": "long",
+      "price": price,
+      "size": size,
+      "cost": cost,
+      "datetime": now,
+    })
+    saveManualSim(data)
+  return jsonify({"ok": True, "position": data["positions"][-1], "balance": data["balance"]})
+
+
+@app.route("/api/manual-sim/short", methods=["POST"])
+def apiManualSimShort():
+  """手動ショート（空売り）"""
+  body = flaskRequest.get_json(silent=True) or {}
+  try:
+    size = float(body.get("size", 0))
+    price = float(body.get("price", 0))
+  except (ValueError, TypeError):
+    return jsonify({"error": "size と price は数値が必要です"}), 400
+  if size <= 0 or price <= 0:
+    return jsonify({"error": "size と price は正の値が必要です"}), 400
+
+  import uuid
+  with _msLock:
+    data = loadManualSim()
+    # ショートは証拠金として必要額を仮押さえ
+    margin = price * size
+    if margin > data["balance"]:
+      return jsonify({"error": f"証拠金不足: 必要 {margin:.0f}円 / 残高 {data['balance']:.0f}円"}), 400
+
+    now = datetime.now(timezone(timedelta(hours=9))).isoformat()
+    posId = uuid.uuid4().hex[:12] + "_S"
+    data["balance"] -= margin
+    data["positions"].append({
+      "id": posId,
+      "type": "short",
+      "price": price,
+      "size": size,
+      "cost": margin,
+      "datetime": now,
+    })
+    saveManualSim(data)
+  return jsonify({"ok": True, "position": data["positions"][-1], "balance": data["balance"]})
+
+
+@app.route("/api/manual-sim/close", methods=["POST"])
+def apiManualSimClose():
+  """ポジションを決済"""
+  body = flaskRequest.get_json(silent=True) or {}
+  posId = str(body.get("id", ""))
+  try:
+    closePrice = float(body.get("price", 0))
+  except (ValueError, TypeError):
+    return jsonify({"error": "price は数値が必要です"}), 400
+  if not posId or closePrice <= 0:
+    return jsonify({"error": "id と price が必要です"}), 400
+
+  with _msLock:
+    data = loadManualSim()
+    pos = None
+    posIdx = -1
+    for i, p in enumerate(data["positions"]):
+      if p["id"] == posId:
+        pos = p
+        posIdx = i
+        break
+    if pos is None:
+      return jsonify({"error": "ポジションが見つかりません"}), 404
+
+    now = datetime.now(timezone(timedelta(hours=9))).isoformat()
+    if pos["type"] == "long":
+      pnl = (closePrice - pos["price"]) * pos["size"]
+      returnAmount = closePrice * pos["size"]
+    else:  # short
+      pnl = (pos["price"] - closePrice) * pos["size"]
+      returnAmount = max(0, pos["cost"] + pnl)  # 証拠金以上の損失は0で打ち止め
+
+    data["balance"] += returnAmount
+    data["closedTrades"].append({
+      "id": pos["id"],
+      "type": pos["type"],
+      "entryPrice": pos["price"],
+      "exitPrice": closePrice,
+      "size": pos["size"],
+      "pnl": round(pnl),
+      "entryDatetime": pos["datetime"],
+      "exitDatetime": now,
+    })
+    data["positions"].pop(posIdx)
+    saveManualSim(data)
+  return jsonify({"ok": True, "pnl": round(pnl), "balance": data["balance"]})
+
+
+@app.route("/api/manual-sim/reset", methods=["POST"])
+def apiManualSimReset():
+  """シミュレーションをリセット"""
+  with _msLock:
+    data = {
+      "initialBalance": _MS_INIT_BALANCE,
+      "balance": _MS_INIT_BALANCE,
+      "positions": [],
+      "closedTrades": [],
+    }
+    saveManualSim(data)
+  return jsonify({"ok": True, "balance": _MS_INIT_BALANCE})
+
+
+# ── Bench ──
+
+BENCH_DIR = SIM_DIR / "bench"
+_benchProcess = {"proc": None, "startedAt": None, "args": None, "cancelled": False}
+
+
+@app.route("/bench")
+def bench():
+  return send_from_directory(ROOT / "docs", "bench.html")
+
+
+@app.route("/api/bench")
+def apiBench():
+  """保存済みベンチ結果の一覧"""
+  results = []
+  if BENCH_DIR.exists():
+    for f in sorted(BENCH_DIR.glob("*.json"), reverse=True):
+      try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        data["_filename"] = f.name
+        results.append(data)
+      except Exception:
+        pass
+  return jsonify({"results": results})
+
+
+@app.route("/api/bench/<filename>")
+def apiBenchDetail(filename):
+  """個別ベンチ結果"""
+  path = (BENCH_DIR / filename).resolve()
+  if not path.is_relative_to(BENCH_DIR.resolve()):
+    return jsonify({"error": "not found"}), 404
+  if not path.exists() or not path.suffix == ".json":
+    return jsonify({"error": "not found"}), 404
+  data = json.loads(path.read_text(encoding="utf-8"))
+  return jsonify(data)
+
+
+@app.route("/api/bench/run", methods=["POST"])
+def apiBenchRun():
+  """ベンチマークをサブプロセスで実行"""
+  import subprocess
+
+  # 既に実行中なら拒否
+  proc = _benchProcess["proc"]
+  if proc is not None and proc.poll() is None:
+    return jsonify({"error": "ベンチマーク実行中です", "running": True}), 409
+
+  body = flaskRequest.get_json(silent=True) or {}
+  benchType = body.get("type", "backtest")
+  strategies = body.get("strategies", "all")
+  symbol = body.get("symbol", "BTCUSDT")
+  interval = body.get("interval", "1d")
+  years = str(body.get("years", 1))
+  sl = body.get("sl")
+  tp = body.get("tp")
+
+  cmd = [
+    sys.executable, str(ROOT / "src" / "simulator" / "runner.py"),
+    "bench",
+    "--type", benchType,
+    "--strategies", strategies,
+    "--symbol", symbol,
+    "--interval", interval,
+    "--years", years,
+  ]
+  if sl is not None:
+    cmd += ["--sl", str(sl)]
+  if tp is not None:
+    cmd += ["--tp", str(tp)]
+
+  proc = subprocess.Popen(
+    cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+    cwd=str(ROOT),
+    encoding="utf-8",
+    errors="replace",
+  )
+  _benchProcess["proc"] = proc
+  _benchProcess["startedAt"] = datetime.now().isoformat()
+  _benchProcess["cancelled"] = False
+  _benchProcess["args"] = {
+    "type": benchType, "strategies": strategies,
+    "symbol": symbol, "interval": interval, "years": int(years),
+  }
+
+  return jsonify({"ok": True, "startedAt": _benchProcess["startedAt"], "args": _benchProcess["args"]})
+
+
+@app.route("/api/bench/status")
+def apiBenchStatus():
+  """実行中ベンチの状態を確認"""
+  proc = _benchProcess["proc"]
+  if proc is None:
+    return jsonify({"running": False})
+
+  poll = proc.poll()
+  if poll is None:
+    return jsonify({
+      "running": True,
+      "startedAt": _benchProcess["startedAt"],
+      "args": _benchProcess["args"],
+    })
+
+  # 完了: 出力を回収
+  stdout = proc.stdout.read() if proc.stdout else ""
+  cancelled = _benchProcess["cancelled"]
+  _benchProcess["proc"] = None
+  return jsonify({
+    "running": False,
+    "finished": True,
+    "returnCode": poll,
+    "cancelled": cancelled,
+    "output": stdout[-5000:] if len(stdout) > 5000 else stdout,
+    "startedAt": _benchProcess["startedAt"],
+    "args": _benchProcess["args"],
+  })
+
+
+@app.route("/api/bench/cancel", methods=["POST"])
+def apiBenchCancel():
+  """実行中のベンチを中止（Windowsではプロセスツリーごとkill）"""
+  import subprocess as _sp
+  proc = _benchProcess["proc"]
+  if proc is None or proc.poll() is not None:
+    return jsonify({"ok": False, "error": "実行中のベンチがありません"})
+
+  _benchProcess["cancelled"] = True
+  try:
+    # Windows: taskkill /F /T でプロセスツリーを強制終了
+    _sp.run(
+      ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+      stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+    )
+  except Exception:
+    # フォールバック
+    proc.kill()
+  return jsonify({"ok": True})
+
+
 if __name__ == "__main__":
   print("Dashboard:    http://localhost:5000")
   print("Simulations:  http://localhost:5000/simulations")
@@ -487,4 +806,5 @@ if __name__ == "__main__":
   print("DART:         http://localhost:5000/trader (Manual Control)")
   print("Gap Scan:     http://localhost:5000/gap-scan")
   print("Journal:      http://localhost:5000/trade-journal")
+  print("Bench:        http://localhost:5000/bench")
   app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", port=5000)

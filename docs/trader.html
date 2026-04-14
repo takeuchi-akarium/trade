@@ -143,6 +143,7 @@
     <a href="/strategy">Strategy</a>
     <a href="/simulations">Simulations</a>
     <a href="/trade-journal">Journal</a>
+    <a href="/bench">Bench</a>
   </nav>
 </div>
 
@@ -228,6 +229,62 @@
       </div>
     </div>
     <div id="bbChart" class="bb-chart"></div>
+  </div>
+
+  <!-- ═══ MANUAL SIM: 手動売買シミュレーション ═══ -->
+  <div class="col-full">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="section-label" style="flex:1; margin:0">Manual Simulation — 手動売買シミュレーション</div>
+      <button class="btn" style="font-size:10px; padding:3px 10px; background:var(--border); color:var(--muted)" onclick="resetManualSim()">Reset</button>
+    </div>
+
+    <div style="display:flex; gap:12px; margin:8px 0; flex-wrap:wrap;">
+      <!-- 残高・損益 -->
+      <div class="card" style="min-width:160px">
+        <div class="val" id="msBalance">--</div>
+        <div class="lbl">残高（円）</div>
+      </div>
+      <div class="card" style="min-width:120px">
+        <div class="val" id="msTotalPnl">--</div>
+        <div class="lbl">確定損益</div>
+      </div>
+      <div class="card" style="min-width:120px">
+        <div class="val" id="msUnrealPnl">--</div>
+        <div class="lbl">含み損益</div>
+      </div>
+      <div class="card" style="min-width:120px">
+        <div class="val" id="msTradeCount">--</div>
+        <div class="lbl">取引数</div>
+      </div>
+
+      <!-- 注文フォーム -->
+      <div class="card" style="flex:1; min-width:320px;">
+        <div style="display:flex; gap:8px; align-items:end; flex-wrap:wrap;">
+          <div>
+            <div class="lbl" style="margin-bottom:3px">数量 (BTC)</div>
+            <input id="msSize" type="number" step="0.0001" min="0.0001" value="0.001"
+              style="width:100px; padding:5px 8px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:13px;">
+          </div>
+          <div>
+            <div class="lbl" style="margin-bottom:3px">価格 (JPY) <span id="msPriceHint" style="font-size:8px; color:var(--muted)">現在値を自動入力</span></div>
+            <input id="msPrice" type="number" step="1" min="1" placeholder="現在値"
+              style="width:130px; padding:5px 8px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:13px;">
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="btn btn-green" onclick="manualBuy()" style="padding:5px 16px">買い</button>
+            <button class="btn btn-red" onclick="manualShort()" style="padding:5px 16px">空売り</button>
+          </div>
+          <div id="msOrderCost" style="font-size:11px; color:var(--muted); margin-left:4px;"></div>
+        </div>
+        <div id="msOrderMsg" class="hint" style="margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <!-- ポジション一覧 -->
+    <div id="msPositions" style="margin-bottom:8px;"></div>
+
+    <!-- 決済履歴 -->
+    <div id="msClosedTrades" style="max-height:200px; overflow-y:auto;"></div>
   </div>
 
   <!-- ═══ BOTTOM: Strategies + Trade Log ═══ -->
@@ -616,7 +673,198 @@ async function loadData() {
   }
 }
 
-loadBbChart(); loadData(); loadFunda(); loadMode(); loadLastDart();
+// ── Manual Simulation ──
+
+var msCurrentPrice = 0;
+
+function updateOrderCost() {
+  var s = parseFloat(document.getElementById("msSize").value) || 0;
+  var p = parseFloat(document.getElementById("msPrice").value) || msCurrentPrice;
+  var el = document.getElementById("msOrderCost");
+  if (s > 0 && p > 0) el.textContent = "≈ " + fmt(Math.round(s * p)) + "円";
+  else el.textContent = "";
+}
+document.getElementById("msSize").addEventListener("input", updateOrderCost);
+document.getElementById("msPrice").addEventListener("input", updateOrderCost);
+
+async function loadManualSim() {
+  try {
+    var r = await fetch("/api/manual-sim"); var d = await r.json();
+    renderManualSim(d);
+  } catch (e) { console.log("manual-sim:", e); }
+}
+
+function renderManualSim(d) {
+  // 残高
+  document.getElementById("msBalance").textContent = fmt(Math.round(d.balance));
+
+  // 確定損益
+  var totalPnl = d.closedTrades.reduce(function(s, t) { return s + t.pnl; }, 0);
+  var pnlEl = document.getElementById("msTotalPnl");
+  pnlEl.textContent = (totalPnl >= 0 ? "+" : "") + fmt(Math.round(totalPnl));
+  pnlEl.style.color = pnlColor(totalPnl);
+
+  // 含み損益
+  var unrealPnl = 0;
+  if (msCurrentPrice > 0) {
+    d.positions.forEach(function(p) {
+      if (p.type === "long") unrealPnl += (msCurrentPrice - p.price) * p.size;
+      else unrealPnl += (p.price - msCurrentPrice) * p.size;
+    });
+  }
+  var urEl = document.getElementById("msUnrealPnl");
+  urEl.textContent = (unrealPnl >= 0 ? "+" : "") + fmt(Math.round(unrealPnl));
+  urEl.style.color = pnlColor(unrealPnl);
+
+  // 取引数
+  document.getElementById("msTradeCount").textContent =
+    d.positions.length + " open / " + d.closedTrades.length + " closed";
+
+  // ポジション一覧
+  var posEl = document.getElementById("msPositions");
+  if (d.positions.length === 0) {
+    posEl.innerHTML = '<div class="empty" style="font-size:11px; padding:6px">ポジションなし</div>';
+  } else {
+    posEl.innerHTML = '<div class="trade-log" style="max-height:none">' +
+      d.positions.map(function(p) {
+        var ur = 0;
+        if (msCurrentPrice > 0) {
+          ur = p.type === "long"
+            ? (msCurrentPrice - p.price) * p.size
+            : (p.price - msCurrentPrice) * p.size;
+        }
+        var typeClass = p.type === "long" ? "buy" : "short";
+        var typeLabel = p.type === "long" ? "LONG" : "SHORT";
+        return '<div class="trade-row" style="align-items:center">' +
+          '<span class="dt">' + new Date(p.datetime).toLocaleString("ja-JP") + '</span>' +
+          '<span class="type ' + typeClass + '">' + typeLabel + '</span>' +
+          '<span>' + fmt(Math.round(p.price)) + '円 x' + p.size + ' BTC</span>' +
+          '<span class="pnl" style="color:' + pnlColor(ur) + '">' +
+            (ur >= 0 ? "+" : "") + fmt(Math.round(ur)) + '</span>' +
+          '<button class="btn btn-red ms-close-btn" style="font-size:10px; padding:2px 10px; margin-left:8px" ' +
+            'data-id="' + p.id + '">決済</button>' +
+        '</div>';
+      }).join("") + '</div>';
+  }
+
+  // 決済履歴
+  var ctEl = document.getElementById("msClosedTrades");
+  if (d.closedTrades.length === 0) {
+    ctEl.innerHTML = "";
+  } else {
+    var reversed = d.closedTrades.slice().reverse();
+    ctEl.innerHTML = '<div class="trade-log">' +
+      reversed.map(function(t) {
+        var typeLabel = t.type === "long" ? "LONG→決済" : "SHORT→決済";
+        return '<div class="trade-row">' +
+          '<span class="dt">' + new Date(t.exitDatetime).toLocaleString("ja-JP") + '</span>' +
+          '<span class="type ' + (t.type === "long" ? "close_long" : "close_short") + '">' + typeLabel + '</span>' +
+          '<span>' + fmt(Math.round(t.entryPrice)) + '→' + fmt(Math.round(t.exitPrice)) + ' x' + t.size + '</span>' +
+          '<span class="pnl" style="color:' + pnlColor(t.pnl) + '">' +
+            (t.pnl >= 0 ? "+" : "") + fmt(Math.round(t.pnl)) + '</span>' +
+        '</div>';
+      }).join("") + '</div>';
+  }
+
+}
+
+// 決済ボタンのイベント委譲（親要素に1回だけ設定）
+document.getElementById("msPositions").addEventListener("click", function(e) {
+  var btn = e.target.closest(".ms-close-btn");
+  if (btn) closePosition(btn.dataset.id);
+});
+
+function getOrderPrice() {
+  var v = parseFloat(document.getElementById("msPrice").value);
+  if (v > 0) return v;
+  return msCurrentPrice;
+}
+
+async function manualBuy() {
+  var size = parseFloat(document.getElementById("msSize").value);
+  var price = getOrderPrice();
+  if (!size || size <= 0) { alert("数量を入力してください"); return; }
+  if (!price || price <= 0) { alert("価格を入力するか、Check Nowで現在値を取得してください"); return; }
+  var msg = document.getElementById("msOrderMsg");
+  msg.textContent = "注文中..."; msg.style.color = "var(--muted)";
+  try {
+    var r = await fetch("/api/manual-sim/buy", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ size: size, price: price }),
+    });
+    var d = await r.json();
+    if (d.error) { msg.textContent = d.error; msg.style.color = "var(--red)"; return; }
+    msg.textContent = "買い約定: " + size + " BTC @ " + fmt(Math.round(price)) + "円";
+    msg.style.color = "var(--green)";
+    loadManualSim();
+  } catch (e) { msg.textContent = "Error: " + e.message; msg.style.color = "var(--red)"; }
+}
+
+async function manualShort() {
+  var size = parseFloat(document.getElementById("msSize").value);
+  var price = getOrderPrice();
+  if (!size || size <= 0) { alert("数量を入力してください"); return; }
+  if (!price || price <= 0) { alert("価格を入力するか、Check Nowで現在値を取得してください"); return; }
+  var msg = document.getElementById("msOrderMsg");
+  msg.textContent = "注文中..."; msg.style.color = "var(--muted)";
+  try {
+    var r = await fetch("/api/manual-sim/short", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ size: size, price: price }),
+    });
+    var d = await r.json();
+    if (d.error) { msg.textContent = d.error; msg.style.color = "var(--red)"; return; }
+    msg.textContent = "空売り約定: " + size + " BTC @ " + fmt(Math.round(price)) + "円";
+    msg.style.color = "var(--red)";
+    loadManualSim();
+  } catch (e) { msg.textContent = "Error: " + e.message; msg.style.color = "var(--red)"; }
+}
+
+async function closePosition(posId) {
+  var price = getOrderPrice();
+  if (!price || price <= 0) { alert("Check Nowで現在値を取得してから決済してください"); return; }
+  if (!confirm("現在値 " + fmt(Math.round(price)) + "円で決済しますか？")) return;
+  var msg = document.getElementById("msOrderMsg");
+  msg.textContent = "決済中..."; msg.style.color = "var(--muted)";
+  try {
+    var r = await fetch("/api/manual-sim/close", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ id: posId, price: price }),
+    });
+    var d = await r.json();
+    if (d.error) { msg.textContent = d.error; msg.style.color = "var(--red)"; return; }
+    msg.textContent = "決済完了: P&L " + (d.pnl >= 0 ? "+" : "") + fmt(d.pnl) + "円";
+    msg.style.color = d.pnl >= 0 ? "var(--green)" : "var(--red)";
+    loadManualSim();
+  } catch (e) { msg.textContent = "Error: " + e.message; msg.style.color = "var(--red)"; }
+}
+
+async function resetManualSim() {
+  if (!confirm("シミュレーションをリセットしますか？\n全ポジション・取引履歴が消去されます。")) return;
+  try {
+    await fetch("/api/manual-sim/reset", { method: "POST" });
+    document.getElementById("msOrderMsg").textContent = "";
+    loadManualSim();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+// DART Check完了時に現在価格を手動シム価格欄にも反映
+if (typeof dartRender === "function") {
+var origDartRender = dartRender;
+dartRender = function(d) {
+  origDartRender(d);
+  if (d.price > 0) {
+    msCurrentPrice = d.price;
+    var priceInput = document.getElementById("msPrice");
+    if (!priceInput.value) priceInput.placeholder = fmt(Math.round(d.price));
+    document.getElementById("msPriceHint").textContent = "現在値: " + fmt(Math.round(d.price)) + "円";
+    updateOrderCost();
+    loadManualSim(); // 含み損益を現在値で再計算
+  }
+};
+}
+
+loadBbChart(); loadData(); loadFunda(); loadMode(); loadLastDart(); loadManualSim();
 setInterval(loadBbChart,300000);
 setInterval(loadData,30000);
 setInterval(loadFunda,300000);

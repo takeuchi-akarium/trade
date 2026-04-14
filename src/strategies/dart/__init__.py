@@ -18,7 +18,8 @@ from strategies.registry import register
 from simulator.scenario import ALLOCATION_PATTERNS
 
 GRADIENT_LEVELS = ALLOCATION_PATTERNS["gradient"]["levels"]
-NAN_DEFAULT = ALLOCATION_PATTERNS["gradient"].get("nanDefault", (0.60, 0.10, 0.30))
+NAN_DEFAULT = ALLOCATION_PATTERNS["gradient"].get("nanDefault", (0.70, 0.30, 0.00))
+HYSTERESIS = ALLOCATION_PATTERNS["gradient"].get("hysteresis", 1)
 TREND_MA_PERIOD = 50
 
 # threshold降順にソート（None は末尾）
@@ -44,6 +45,29 @@ class DartStrategy(Strategy):
   name = "dart"
   description = "DART段階制 (bb+ema_don+bb_ls 動的配分)"
   category = "composite"
+  version = "2.2.0"
+  changelog = [
+    {"version": "2.2.0", "date": "2026-04-14", "changes": [
+      "シナリオ探索で最適化: 加重平均リターン+27%→+44.7%, 最悪ケース-38%→-16.3%",
+      "閾値調整: ±4%→±3% (range帯を狭めてuptrend判定を早める)",
+      "range帯: bb70%/ema_don30% (レンジではbb逆張りを主力に)",
+      "uptrend帯: bb30%/ema_don70% (トレンド時もbbで安定性確保)",
+      "downtrend帯: bb50% (押し目拾いの比率を引き上げ)",
+      "ヒステリシス4日 (リバランスを62回に削減)",
+    ]},
+    {"version": "2.1.0", "date": "2026-04-14", "changes": [
+      "閾値拡大: ±2%→±4% (ema_don配分時間を増やす)",
+      "bb_lsを廃止→下落時は現金待機 or bb押し目のみ",
+      "range帯のema_don配分を10%→50%に引き上げ",
+      "ヒステリシス3日導入（リバランス頻度を大幅削減）",
+    ]},
+    {"version": "2.0.0", "date": "2026-04-14", "changes": [
+      "レジーム判定にshift(1)適用: 前日終値+前日SMA50で判定（look-ahead bias修正）",
+      "サブ戦略の約定を翌足始値(open)に変更（同一足close約定を廃止）",
+      "SL/TPを日中安値(low)/高値(high)で判定（closeのみの判定を廃止）",
+    ]},
+    {"version": "1.0.0", "date": "2026-04-01", "changes": ["初版"]},
+  ]
   defaultParams = {
     "capital": 100_000,
     "fee": 0.1,
@@ -58,12 +82,38 @@ class DartStrategy(Strategy):
   def generateSignals(self, data: pd.DataFrame, **params) -> pd.DataFrame:
     # DARTはシグナル単体ではなくポートフォリオ運用のため、
     # レジーム判定結果を signal 列に格納する
-    trendMa = data["close"].rolling(TREND_MA_PERIOD).mean()
+    # shift(1): 前日までのデータでレジーム判定
+    trendMa = data["close"].rolling(TREND_MA_PERIOD).mean().shift(1)
+    prevClose = data["close"].shift(1)
     signals = []
+    prevWeights = None
+    candidateWeights = None
+    candidateCount = 0
     for i in range(len(data)):
-      close = data["close"].iloc[i]
+      close = prevClose.iloc[i] if not pd.isna(prevClose.iloc[i]) else data["close"].iloc[i]
       ma = trendMa.iloc[i]
-      wBb, wEma, wBbLs = _gradientWeights(close, ma)
+      rawWeights = _gradientWeights(close, ma)
+      # ヒステリシス適用
+      if prevWeights is None:
+        curWeights = rawWeights
+      elif rawWeights == prevWeights:
+        curWeights = prevWeights
+        candidateWeights = None
+        candidateCount = 0
+      elif rawWeights == candidateWeights:
+        candidateCount += 1
+        if candidateCount >= HYSTERESIS:
+          curWeights = rawWeights
+          candidateWeights = None
+          candidateCount = 0
+        else:
+          curWeights = prevWeights
+      else:
+        candidateWeights = rawWeights
+        candidateCount = 1
+        curWeights = prevWeights
+      prevWeights = curWeights
+      wBb, wEma, wBbLs = curWeights
       # 合計weight > 0 なら参加（1）、全退避なら 0
       signals.append(1 if (wBb + wEma + wBbLs) > 0 else 0)
     data = data.copy()
@@ -88,7 +138,8 @@ class DartStrategy(Strategy):
     dfEma = emaStrategy.generateSignals(data.copy(), short=10, long=50)
     dfBbLs = bbLsStrategy.generateSignals(data.copy())
 
-    trendMa = data["close"].rolling(TREND_MA_PERIOD).mean()
+    # shift(1): 前日までのデータでレジーム判定（look-ahead bias防止）
+    trendMa = data["close"].rolling(TREND_MA_PERIOD).mean().shift(1)
 
     _, eqBb = runBacktest(dfBb, capital, feePct)
     _, eqEma = runBacktest(dfEma, capital, feePct)
@@ -98,19 +149,44 @@ class DartStrategy(Strategy):
     retEma = eqEma.pct_change().fillna(0)
     retBbLs = eqBbLs.pct_change().fillna(0)
 
-    # 段階制でequityを構築
+    # 段階制でequityを構築（ヒステリシス付き）
     equity = capital
     equityList = []
     prevWeights = None
+    candidateWeights = None
+    candidateCount = 0
     trades = []
 
+    # 前日の終値でレジーム判定（当日のリターンに適用）
+    prevClose = data["close"].shift(1)
     for i in range(len(data)):
-      close = data["close"].iloc[i]
+      close = prevClose.iloc[i] if not np.isnan(prevClose.iloc[i]) else data["close"].iloc[i]
       ma = trendMa.iloc[i]
-      wBb, wEma, wBbLs = _gradientWeights(close, ma)
+      rawWeights = _gradientWeights(close, ma)
+
+      # ヒステリシス: N日連続で同じweightが示されたら遷移
+      if prevWeights is None:
+        curWeights = rawWeights
+      elif rawWeights == prevWeights:
+        curWeights = prevWeights
+        candidateWeights = None
+        candidateCount = 0
+      elif rawWeights == candidateWeights:
+        candidateCount += 1
+        if candidateCount >= HYSTERESIS:
+          curWeights = rawWeights
+          candidateWeights = None
+          candidateCount = 0
+        else:
+          curWeights = prevWeights
+      else:
+        candidateWeights = rawWeights
+        candidateCount = 1
+        curWeights = prevWeights
+
+      wBb, wEma, wBbLs = curWeights
 
       # リバランスコスト
-      curWeights = (wBb, wEma, wBbLs)
       if prevWeights is not None and curWeights != prevWeights:
         weightDelta = sum(abs(a - b) for a, b in zip(curWeights, prevWeights))
         rebalanceCost = equity * feePct / 100 * weightDelta

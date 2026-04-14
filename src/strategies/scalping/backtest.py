@@ -26,6 +26,9 @@ def runBacktest(
   """
   シグナル付きdfでバックテスト実行。
 
+  シグナルは前足で発生し、翌足の始値(open)で約定する。
+  SL/TPは日中の安値(low)/高値(high)で判定する。
+
   Returns:
     trades: 取引履歴リスト
     equity: 時系列の資産額Series
@@ -37,45 +40,59 @@ def runBacktest(
 
   trades = []
   equityList = []
+  pendingSignal = 0  # 前足のシグナルを保持
 
   for dt, row in df.iterrows():
     price = row["close"]
-    signal = row.get("signal", 0)
+    execPrice = row["open"]  # 約定は始値
+    low = row.get("low", price)
+    high = row.get("high", price)
 
-    # SL/TP判定（ポジション保有中）
+    # SL/TP判定（ポジション保有中、日中の安値/高値で判定）
     if holding > 0:
-      pnlPct = (price - entryPrice) / entryPrice * 100
-
-      slHit = stopLossPct is not None and pnlPct <= -stopLossPct
-      tpHit = takeProfitPct is not None and pnlPct >= takeProfitPct
+      # SL: 日中安値で判定
+      slPnlPct = (low - entryPrice) / entryPrice * 100
+      slHit = stopLossPct is not None and slPnlPct <= -stopLossPct
+      # TP: 日中高値で判定
+      tpPnlPct = (high - entryPrice) / entryPrice * 100
+      tpHit = takeProfitPct is not None and tpPnlPct >= takeProfitPct
 
       if slHit or tpHit:
-        proceeds = holding * price
+        # SL/TP発動時はSL/TPラインの価格で約定（スリッページなし近似）
+        if slHit:
+          exitPrice = entryPrice * (1 - stopLossPct / 100)
+          reason = "stop_loss"
+        else:
+          exitPrice = entryPrice * (1 + takeProfitPct / 100)
+          reason = "take_profit"
+        proceeds = holding * exitPrice
         fee = proceeds * feeRate
         capital = proceeds - fee
-        reason = "stop_loss" if slHit else "take_profit"
+        pnlPct = (exitPrice - entryPrice) / entryPrice * 100
         trades.append({
           "datetime": dt, "type": "sell", "reason": reason,
-          "price": price, "fee": fee,
-          "pnl": price - entryPrice,
+          "price": exitPrice, "fee": fee,
+          "pnl": exitPrice - entryPrice,
           "pnlPct": pnlPct,
           "capitalAfter": capital,
         })
         holding = 0
         entryPrice = 0
+        pendingSignal = 0  # SL/TP発動時はペンディングシグナルをクリア
         equityList.append((dt, capital))
         continue
 
+    # 前足のシグナルを今足の始値で約定
     # 売りシグナル（ポジション決済）
-    if signal == -1 and holding > 0:
-      proceeds = holding * price
+    if pendingSignal == -1 and holding > 0:
+      proceeds = holding * execPrice
       fee = proceeds * feeRate
       capital = proceeds - fee
-      pnlPct = (price - entryPrice) / entryPrice * 100
+      pnlPct = (execPrice - entryPrice) / entryPrice * 100
       trades.append({
         "datetime": dt, "type": "sell", "reason": "signal",
-        "price": price, "fee": fee,
-        "pnl": price - entryPrice,
+        "price": execPrice, "fee": fee,
+        "pnl": execPrice - entryPrice,
         "pnlPct": pnlPct,
         "capitalAfter": capital,
       })
@@ -83,17 +100,20 @@ def runBacktest(
       entryPrice = 0
 
     # 買いシグナル（新規エントリー）
-    elif signal == 1 and holding == 0:
+    elif pendingSignal == 1 and holding == 0:
       fee = capital * feeRate
       investable = capital - fee
-      holding = investable / price
-      entryPrice = price
+      holding = investable / execPrice
+      entryPrice = execPrice
       trades.append({
         "datetime": dt, "type": "buy", "reason": "signal",
-        "price": price, "fee": fee,
+        "price": execPrice, "fee": fee,
         "holding": holding,
       })
       capital = 0
+
+    # 今足のシグナルを次足用に保持
+    pendingSignal = row.get("signal", 0)
 
     val = capital if holding == 0 else holding * price
     equityList.append((dt, val))
@@ -120,6 +140,9 @@ def runBacktestLongShort(
   signal=-1 → ショートエントリー（ロング保有中なら決済→ショート）
   signal= 0 → 何もしない
 
+  シグナルは前足で発生し、翌足の始値(open)で約定する。
+  SL/TPは日中の安値(low)/高値(high)で判定する。
+
   dailyFeePct: 建玉管理料（日次、レバレッジ取引のコスト）
   """
   capital = initialCapital
@@ -132,10 +155,13 @@ def runBacktestLongShort(
   trades = []
   equityList = []
   prevDt = None
+  pendingSignal = 0  # 前足のシグナルを保持
 
   for dt, row in df.iterrows():
     price = row["close"]
-    signal = row.get("signal", 0)
+    execPrice = row["open"]  # 約定は始値
+    low = row.get("low", price)
+    high = row.get("high", price)
 
     # 建玉管理料（日をまたいだら適用）
     if position != 0 and prevDt is not None:
@@ -144,50 +170,66 @@ def runBacktestLongShort(
         mgmtFee = abs(size) * entryPrice * dailyFeeRate * max(1, int(daysDiff))
         capital -= mgmtFee
 
-    # SL/TP判定
+    # SL/TP判定（日中の安値/高値で判定）
     if position != 0:
       if position == 1:
-        pnlPct = (price - entryPrice) / entryPrice * 100
+        slPnlPct = (low - entryPrice) / entryPrice * 100
+        tpPnlPct = (high - entryPrice) / entryPrice * 100
       else:
-        pnlPct = (entryPrice - price) / entryPrice * 100
+        slPnlPct = (entryPrice - high) / entryPrice * 100
+        tpPnlPct = (entryPrice - low) / entryPrice * 100
 
-      slHit = stopLossPct is not None and pnlPct <= -stopLossPct
-      tpHit = takeProfitPct is not None and pnlPct >= takeProfitPct
+      slHit = stopLossPct is not None and slPnlPct <= -stopLossPct
+      tpHit = takeProfitPct is not None and tpPnlPct >= takeProfitPct
 
       if slHit or tpHit:
-        pnlAmount = size * (price - entryPrice) * position
-        fee = abs(size * price) * feeRate
-        if position == 1:
-          capital = size * price - fee  # BTC売却→現金化
+        # SL/TP発動時はライン価格で約定
+        if slHit:
+          if position == 1:
+            exitPrice = entryPrice * (1 - stopLossPct / 100)
+          else:
+            exitPrice = entryPrice * (1 + stopLossPct / 100)
+          reason = "stop_loss"
         else:
-          capital += pnlAmount - fee    # ショート: 担保+損益
-        reason = "stop_loss" if slHit else "take_profit"
+          if position == 1:
+            exitPrice = entryPrice * (1 + takeProfitPct / 100)
+          else:
+            exitPrice = entryPrice * (1 - takeProfitPct / 100)
+          reason = "take_profit"
+        pnlAmount = size * (exitPrice - entryPrice) * position
+        pnlPct = pnlAmount / (size * entryPrice) * 100
+        fee = abs(size * exitPrice) * feeRate
+        if position == 1:
+          capital = size * exitPrice - fee
+        else:
+          capital += pnlAmount - fee
         trades.append({
           "datetime": dt, "type": "close",
           "side": "long" if position == 1 else "short",
           "reason": reason,
-          "price": price, "fee": fee,
+          "price": exitPrice, "fee": fee,
           "pnl": pnlAmount, "pnlPct": pnlPct,
           "capitalAfter": capital,
         })
         position = 0
         size = 0
         entryPrice = 0
+        pendingSignal = 0
         equityList.append((dt, capital))
         prevDt = dt
         continue
 
-    # シグナルに応じてポジション切り替え
-    if signal == 1 and position != 1:
+    # 前足のシグナルを今足の始値で約定
+    if pendingSignal == 1 and position != 1:
       # ショート保有中なら決済
       if position == -1:
-        pnlAmount = size * (entryPrice - price)
-        fee = abs(size * price) * feeRate
+        pnlAmount = size * (entryPrice - execPrice)
+        fee = abs(size * execPrice) * feeRate
         capital += pnlAmount - fee
-        pnlPct = (entryPrice - price) / entryPrice * 100
+        pnlPct = (entryPrice - execPrice) / entryPrice * 100
         trades.append({
           "datetime": dt, "type": "close", "side": "short",
-          "reason": "signal", "price": price, "fee": fee,
+          "reason": "signal", "price": execPrice, "fee": fee,
           "pnl": pnlAmount, "pnlPct": pnlPct,
           "capitalAfter": capital,
         })
@@ -197,27 +239,27 @@ def runBacktestLongShort(
       # ロングエントリー
       fee = capital * feeRate
       investable = capital - fee
-      size = investable / price
-      entryPrice = price
+      size = investable / execPrice
+      entryPrice = execPrice
       position = 1
       capital = 0
       trades.append({
         "datetime": dt, "type": "open", "side": "long",
-        "reason": "signal", "price": price, "fee": fee,
+        "reason": "signal", "price": execPrice, "fee": fee,
         "size": size,
       })
 
-    elif signal == -1 and position != -1:
+    elif pendingSignal == -1 and position != -1:
       # ロング保有中なら決済
       if position == 1:
-        proceeds = size * price
+        proceeds = size * execPrice
         fee = proceeds * feeRate
-        pnlAmount = size * (price - entryPrice)
-        pnlPct = (price - entryPrice) / entryPrice * 100
-        capital = proceeds - fee  # BTCを売却→現金化
+        pnlAmount = size * (execPrice - entryPrice)
+        pnlPct = (execPrice - entryPrice) / entryPrice * 100
+        capital = proceeds - fee
         trades.append({
           "datetime": dt, "type": "close", "side": "long",
-          "reason": "signal", "price": price, "fee": fee,
+          "reason": "signal", "price": execPrice, "fee": fee,
           "pnl": pnlAmount, "pnlPct": pnlPct,
           "capitalAfter": capital,
         })
@@ -227,14 +269,17 @@ def runBacktestLongShort(
       # ショートエントリー（現金を担保として保持、手数料差引）
       fee = capital * feeRate
       capital -= fee
-      size = capital / price
-      entryPrice = price
+      size = capital / execPrice
+      entryPrice = execPrice
       position = -1
       trades.append({
         "datetime": dt, "type": "open", "side": "short",
-        "reason": "signal", "price": price, "fee": fee,
+        "reason": "signal", "price": execPrice, "fee": fee,
         "size": size,
       })
+
+    # 今足のシグナルを次足用に保持
+    pendingSignal = row.get("signal", 0)
 
     # 時価評価
     if position == 0:
@@ -242,7 +287,6 @@ def runBacktestLongShort(
     elif position == 1:
       val = size * price
     else:  # short
-      # 担保capital + 含み損益(entryPrice - price) * size
       val = capital + size * (entryPrice - price)
     equityList.append((dt, val))
     prevDt = dt
