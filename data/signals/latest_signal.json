@@ -1,13 +1,13 @@
 {
   "signal": "HOLD",
-  "total": -28,
+  "total": -19,
   "scores": {
-    "fear_greed": -76,
+    "fear_greed": -58,
     "vix": 20
   },
   "details": {
-    "fear_greed": "12 (Extreme Fear)",
-    "vix": "19.1"
+    "fear_greed": "21 (Extreme Fear)",
+    "vix": "18.4"
   },
-  "updated_at": "2026-04-14T07:06:40.199471+09:00"
+  "updated_at": "2026-04-15T07:08:50.217769+09:00"
 }
