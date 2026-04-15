@@ -1539,5 +1539,110 @@
       }
     ],
     "confidence": 1.2
+  },
+  {
+    "date": "2026-04-15 00:00:00",
+    "timestamp": "2026-04-15T22:07:51.749232",
+    "long": [
+      {
+        "ticker": "1621.T",
+        "name": "医薬品",
+        "score": 0.675,
+        "prevReturn": 1.06,
+        "close": 32300.0,
+        "prevChange": 340.0
+      },
+      {
+        "ticker": "1627.T",
+        "name": "電力・ガス",
+        "score": 0.675,
+        "prevReturn": 0.04,
+        "close": 12650.0,
+        "prevChange": 5.0
+      },
+      {
+        "ticker": "1617.T",
+        "name": "食品",
+        "score": 0.6,
+        "prevReturn": 0.38,
+        "close": 45430.0,
+        "prevChange": 170.0
+      },
+      {
+        "ticker": "1624.T",
+        "name": "機械",
+        "score": 0.525,
+        "prevReturn": -0.42,
+        "close": 90160.0,
+        "prevChange": -380.0
+      },
+      {
+        "ticker": "1620.T",
+        "name": "素材・化学",
+        "score": 0.35,
+        "prevReturn": 0.56,
+        "close": 36030.0,
+        "prevChange": 200.0
+      },
+      {
+        "ticker": "1630.T",
+        "name": "小売",
+        "score": 0.325,
+        "prevReturn": 0.05,
+        "close": 37730.0,
+        "prevChange": 20.0
+      }
+    ],
+    "short": [
+      {
+        "ticker": "1622.T",
+        "name": "自動車・輸送機",
+        "score": -0.225,
+        "prevReturn": 1.51,
+        "close": 35740.0,
+        "prevChange": 530.0
+      },
+      {
+        "ticker": "1626.T",
+        "name": "情報通信・サービス",
+        "score": -0.25,
+        "prevReturn": 1.56,
+        "close": 39600.0,
+        "prevChange": 610.0
+      },
+      {
+        "ticker": "1625.T",
+        "name": "電気・精密",
+        "score": -0.3,
+        "prevReturn": 1.54,
+        "close": 55470.0,
+        "prevChange": 840.0
+      },
+      {
+        "ticker": "1631.T",
+        "name": "銀行",
+        "score": -0.6,
+        "prevReturn": 2.12,
+        "close": 34130.0,
+        "prevChange": 710.0
+      },
+      {
+        "ticker": "1618.T",
+        "name": "エネルギー資源",
+        "score": -0.7,
+        "prevReturn": -1.55,
+        "close": 38060.0,
+        "prevChange": -600.0
+      },
+      {
+        "ticker": "1629.T",
+        "name": "商社・卸売",
+        "score": -1.0,
+        "prevReturn": -1.75,
+        "close": 275.5,
+        "prevChange": -4.9
+      }
+    ],
+    "confidence": 1.04
   }
 ]
