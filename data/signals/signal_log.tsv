@@ -2375,3 +2375,184 @@
       6902.T        デンソー    1,917.5     1,879.1    2.5    -1.7      0.94     0.0%      SKIP
     理由: フィル率低(0%<15%)
 
+2026-04-20T06:57:40.790516+09:00	=== 日米リードラグ シグナル 2026-04-20(月) ===
+  （データ基準日: 2026-04-17(金)）
+
+■ 確信度: 中 (1.09) — ポジション控えめ推奨
+
+■ 本日の推奨ポジション
+【ロング（寄付き買い→引け売り）】
+  1625.T 電気・精密      +0.9750 / -1.68% / -950.0円
+  1631.T 銀行         +0.7000 / -1.87% / -640.0円
+  1618.T エネルギー資源    +0.5250 / -1.06% / -400.0円
+  1620.T 素材・化学      +0.3500 / -0.71% / -260.0円
+  1624.T 機械         +0.3250 / -2.02% / -1830.0円
+  1629.T 商社・卸売      +0.3000 / -2.18% / -6.1円
+
+【ショート（様子見）】
+  1622.T 自動車・輸送機    -0.2500 / -1.45% / -520.0円
+  1628.T 運輸・物流      -0.4500 / -0.48% / -105.0円
+  1621.T 医薬品        -0.4750 / -0.77% / -250.0円
+  1617.T 食品         -0.7250 / -0.58% / -260.0円
+  1627.T 電力・ガス      -0.7250 / -1.45% / -185.0円
+  1630.T 小売         -0.7250 / -0.97% / -370.0円
+
+■ 米国市場（前日）
+  Energy +1.5% / Communication +1.3% / Technology +1.1% / Real Estate +0.9% / Health Care -0.8%
+  ファクター: グローバル: -0.048 / 国スプレッド: -0.988 / シクリカル: +0.227
+
+■ 実績
+  前日: -1.08% / 月次: -6.26% / 年初来: -11.12%
+========================================
+
+■ デュアルモメンタム (GEM)
+  判定: 米国株 → S&P 500 (SPY)
+  12ヶ月モメンタム: SPY +29.5% / EFA +27.5% / BIL +3.8%
+  相対モメンタム勝者: S&P 500
+
+■ BTC（前日）
+  現在値: $74,476 (-1.8%)
+  24h高値: $76,165 / 安値: $74,477
+
+■ マクロシグナル
+  判定: 中立 (HOLD)  スコア: -13
+  fear_greed: 27 (Fear) (-46)
+  vix: 17.5 (+20)
+
+■ BTCファンダスコア
+  スコア: -0.47 → やや弱気 (Early Transition対象)
+  Gold: $4,880 (66d mom: +6.3%)
+  10Y: 4.25% (34d chg: +0.20)
+  FnG: 27 (7d avg: 22)
+
+■ 注目ニュース
+  [+60] Berkshire shares left behind as S&P 500 rallies to record high (CNBC Finance)
+    https://www.cnbc.com/2026/04/18/berkshire-shares-left-behind-as-sp-500-rallies-to-record-high.html
+  [+50] 「森永ラムネ」が売上過去最高 (Yahoo!ビジネス)
+    https://news.yahoo.co.jp/pickup/6576841?source=rss
+  [+50] Software stock dogs have joined market rally. There's a classic investing lesson in the rebound (CNBC Finance)
+    https://www.cnbc.com/2026/04/19/software-tech-stocks-market-rally-microsoft.html
+  [+50] The S&P 500 has blown past 7,000 in an epic comeback rally. Here’s why it can keep going. (MarketWatch)
+    https://www.marketwatch.com/story/the-s-p-500-blowed-past-7-000-in-an-epic-comeback-rally-heres-why-it-can-keep-going-higher-632d6a38?mod=mw_rss_topstories
+
+■ 適時開示
+  [+150] 7050 フロンティアインターナショナル 上方修正/増配
+    https://irbank.net/7050/140120260417506247
+  [+150] 7085 カーブス HD 上方修正/増配
+    https://irbank.net/7085/140120260413502360
+  [+150] 4076 シイエヌエス 上方修正/増配
+    https://irbank.net/4076/140120260409500758
+  [-120] 8247 大和 無配/特別損失
+    https://irbank.net/8247/140120260409500903
+  [+90] 3391 ツルハ HD TOB対象 📌被買付
+    https://irbank.net/3391/140120260415504841
+
+■ 日本小型株 モメンタムTOP10
+  日経225: 58,476 (SMA200: 48,847) -> 上昇トレンド
+  (検査: 500銘柄 / 通過: 170銘柄)
+
+  順位  銘柄      株価      60日     20日    出来高
+  -------------------------------------------------------
+    1.    278A.T    6,480  +156.1%  +124.1%  1,122,095
+    2.    3294.T    4,845  +135.8%  +144.8%     78,990
+    3.    281A.T      808  +119.6%   +44.3%  3,684,225
+    4.    3441.T    2,177   +92.1%    -4.0%     98,250
+    5.    2962.T      833   +79.5%    -9.1%     78,965
+    6.    3449.T    3,880   +69.4%   +49.3%    128,010
+    7.    2780.T    5,410   +60.3%   +28.6%    104,175
+    8.    3083.T    1,222   +57.7%   +26.5%    373,475
+    9.    3446.T    2,028   +55.2%    +8.7%     53,130
+   10.    141A.T    4,445   +46.0%   +11.0%    877,680
+
+  新規: 141A.T
+  脱落: 2437.T
+
+■ 日本株 ギャップスキャン (GD候補)
+  生成: 2026-04-20 06:57:33 (GD閾値: -2.0%)
+  日経225: 58,476 (-1.75%) [上昇トレンド]
+  ドル円: 158.89 (-0.19%)
+  候補: ENTRY=0 / CAUTION=7 / SKIP=16
+
+          銘柄          名前       前日終値      GD想定価格   ATR%    mom5  volTrend    フィル率        推奨
+  -----------------------------------------------------------------------------------------------
+      1605.T       INPEX    3,985.0     3,905.3    5.2    -3.9      0.68    50.0%   CAUTION
+    理由: ATR=5.2% / mom5=-3.9% / フィル率=50% / 直近ニュース5件
+    NEWS: Middle East Ceasefire Buoys Asian Stock Markets
+    NEWS: Formentera and Inpex partner to develop Beetaloo gas resourc
+
+      1570.T     日経レバETF   57,070.0    55,928.6    4.3    +6.1      0.90    16.7%   CAUTION
+    理由: mom5=+6.1%(上昇中) / フィル率17%<30%
+
+      8035.T    東京エレクトロン   44,010.0    43,129.8    4.0    -0.1      1.17    15.4%   CAUTION
+    理由: フィル率15%<30%
+    NEWS: Tokyo Electron (TSE:8035) Valuation Check After 130% One Yea
+    NEWS: Musk Moving at “Light Speed” to Sign Up Suppliers for $25B T
+
+      8306.T       三菱UFJ    2,870.0     2,812.6    2.9    +1.0      1.01    20.0%   CAUTION
+    理由: mom5=+1.0%(上昇中) / フィル率20%<30%
+    NEWS: Forêt Domaniale Wind Project secures financial close
+    NEWS: Canada's Manufacturing Sales Rise as Expected in February; U
+
+      6758.T        ソニーG    3,395.0     3,327.1    2.6    +2.1      0.94    27.3%   CAUTION
+    理由: mom5=+2.1%(上昇中) / フィル率27%<30%
+    NEWS: Sony (SONY) Advances But Underperforms Market: Key Facts
+    NEWS: Sector Update: Consumer Stocks Rise Late Afternoon
+
+      4568.T        第一三共    2,939.0     2,880.2    2.6    +6.0      1.19    33.3%   CAUTION
+    理由: mom5=+6.0%(上昇中)
+    NEWS: Merck’s Priority Review Cancer Drug Adds To Undervalued Grow
+    NEWS: MRK, Daiichi's BLA for ADC Drug Gets FDA Priority Tag in Lun
+
+      5401.T        日本製鉄      595.0       583.1    1.6    -0.9      0.74    33.3%   CAUTION
+    理由: ATR弱(1.6%<2%)
+    NEWS: Sony, Honda Motor, SoftBank, NEC Reportedly Form AI Joint Ve
+    NEWS: Nucor (NUE) Shares Up Since Jim Cramer Advised Selling The S
+
+      1357.T     日経ダブルイン    3,889.0     3,811.2    5.9    -6.2      0.88     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      9984.T     ソフトバンクG    4,527.0     4,436.5    5.2   +19.8      1.32    13.3%      SKIP
+    理由: フィル率低(13%<15%)
+
+      3659.T        ネクソン    2,804.0     2,747.9    3.5    +5.4      0.65    12.5%      SKIP
+    理由: フィル率低(12%<15%)
+
+      6098.T     リクルートHD    7,524.0     7,373.5    3.5    +5.7      0.89     8.3%      SKIP
+    理由: フィル率低(8%<15%)
+
+      5020.T       ENEOS    1,375.0     1,347.5    3.4    -3.5      0.79     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      8411.T       みずほFG    6,768.0     6,632.6    3.4    -0.3      1.00     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      2413.T       エムスリー    1,578.5     1,546.9    3.3    -1.3      1.22    14.3%      SKIP
+    理由: フィル率低(14%<15%)
+
+      8604.T        野村HD    1,334.0     1,307.3    3.2    +2.2      0.99     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      3382.T     セブン&iHD    2,054.5     2,013.4    3.2    +1.4      1.11     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      7201.T       日産自動車      365.0       357.7    2.9    +2.6      0.95     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      6501.T          日立    5,157.0     5,053.9    2.9    +7.2      1.09     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      9101.T        日本郵船    6,096.0     5,974.1    2.9    -1.1      0.62     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      7974.T         任天堂    8,615.0     8,442.7    2.8    +3.8      1.07     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      4063.T        信越化学    6,907.0     6,768.9    2.7    +5.3      0.91    14.3%      SKIP
+    理由: フィル率低(14%<15%)
+
+      7203.T         トヨタ    3,343.0     3,276.1    2.5    +0.7      0.85    14.3%      SKIP
+    理由: フィル率低(14%<15%)
+
+      6902.T        デンソー    1,926.0     1,887.5    2.4    -0.4      0.93     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
