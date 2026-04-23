@@ -3090,3 +3090,183 @@
       5401.T        日本製鉄      587.6       575.8    1.4    -1.7      0.81    33.3%      SKIP
     理由: ATR低(1.4%<1.5%)
 
+2026-04-24T07:07:05.892370+09:00	=== 日米リードラグ シグナル 2026-04-24(金) ===
+  （データ基準日: 2026-04-23(木)）
+
+■ 確信度: 中 (1.08) — ポジション控えめ推奨
+
+■ 本日の推奨ポジション
+【ロング（寄付き買い→引け売り）】
+  1617.T 食品         +0.8500 / +0.30% / +130.0円
+  1621.T 医薬品        +0.7250 / -4.59% / -1510.0円
+  1624.T 機械         +0.5750 / +0.61% / +550.0円
+  1627.T 電力・ガス      +0.4000 / -1.21% / -145.0円
+  1630.T 小売         +0.3500 / -2.53% / -930.0円
+  1633.T 不動産        +0.2750 / -0.78% / -450.0円
+
+【ショート（様子見）】
+  1626.T 情報通信・サービス  -0.2000 / -1.11% / -460.0円
+  1632.T 金融(除く銀行)   -0.3250 / -0.61% / -230.0円
+  1625.T 電気・精密      -0.3500 / -0.69% / -390.0円
+  1631.T 銀行         -0.7750 / -1.23% / -400.0円
+  1618.T エネルギー資源    -0.8000 / +0.82% / +290.0円
+  1629.T 商社・卸売      -0.8750 / +0.23% / +0.6円
+
+■ 米国市場（前日）
+  Technology +2.2% / Energy +1.2% / Real Estate -0.7% / Communication +0.6% / Consumer Staples +0.3%
+  ファクター: グローバル: -0.025 / 国スプレッド: +0.510 / シクリカル: -0.480
+
+■ 実績
+  前日: -0.61% / 月次: -8.73% / 年初来: -13.47%
+========================================
+
+■ デュアルモメンタム (GEM)
+  判定: 米国株 → S&P 500 (SPY)
+  12ヶ月モメンタム: SPY +29.2% / EFA +23.7% / BIL +3.9%
+  相対モメンタム勝者: S&P 500
+
+■ BTC（前日）
+  現在値: $78,022 (-0.9%)
+  24h高値: $78,824 / 安値: $77,228
+
+■ マクロシグナル
+  判定: 中立 (HOLD)  スコア: +6
+  fear_greed: 46 (Fear) (-8)
+  vix: 19.3 (+20)
+
+■ BTCファンダスコア
+  スコア: +0.40 → やや強気
+  Gold: $4,709 (66d mom: -1.1%)
+  10Y: 4.32% (34d chg: +0.19)
+  FnG: 46 (7d avg: 31)
+
+■ 注目ニュース
+  [-60] Software stocks plunge on ServiceNow, IBM results as AI fears escalate (CNBC Finance)
+    https://www.cnbc.com/2026/04/23/software-stocks-plunge-on-servicenow-ibm-results-ai-fears-escalate.html
+  [+50] American Airlines cuts 2026 earnings projections after surge in jet fuel (CNBC Finance)
+    https://www.cnbc.com/2026/04/23/american-airlines-aal-q1-2026-earnings.html
+  [+50] Mobileye’s robotaxi ambitions have ‘progressed significantly,’ and the stock surges (MarketWatch)
+    https://www.marketwatch.com/story/mobileyes-robotaxi-ambitions-have-progressed-significantly-and-the-stock-surges-971fb467?mod=mw_rss_topstories
+
+■ 適時開示
+  [+150] 7050 フロンティアインターナショナル 上方修正/増配
+    https://irbank.net/7050/140120260417506247
+  [+90] 6135 牧野フライス製作所 TOB対象 📌被買付
+    https://irbank.net/6135/140120260423508647
+  [+90] 1776 三井住建道路 TOB対象 📌被買付
+    https://irbank.net/1776/140120260420506581
+  [+90] 4834 キャリアバンク TOB対象 📌被買付
+    https://irbank.net/4834/140120260422508147
+  [+90] 7501 ティムコ TOB対象 📌被買付
+    https://irbank.net/7501/140120260421507271
+
+■ 日本小型株 モメンタムTOP10
+  日経225: 59,586 (SMA200: 49,149) -> 上昇トレンド
+  (検査: 500銘柄 / 通過: 160銘柄)
+
+  順位  銘柄      株価      60日     20日    出来高
+  -------------------------------------------------------
+    1.    278A.T    8,260  +195.3%  +101.5%  1,165,165
+    2.    2962.T      950  +131.1%    +7.7%    157,360
+    3.    3294.T    4,840  +128.3%  +138.1%     85,720
+    4.    281A.T      811  +121.6%   +74.0%  3,294,995
+    5.    3441.T    2,202   +91.3%    -2.9%     75,910
+    6.    3449.T    4,260   +90.7%   +63.6%    150,035
+    7.    3444.T    1,683   +67.5%  +129.9%  1,382,315
+    8.    3446.T    2,130   +59.9%    +7.1%     65,710
+    9.    2344.T    1,485   +58.7%    +0.5%     31,505
+   10.    255A.T    4,925   +57.0%   +53.5%    120,020
+
+  新規: 3444.T
+  脱落: 2656.T
+
+■ 日本株 ギャップスキャン (GD候補)
+  生成: 2026-04-24 07:06:58 (GD閾値: -2.0%)
+  日経225: 59,586 (+0.40%) [上昇トレンド]
+  ドル円: 159.68 (+0.19%)
+  候補: ENTRY=0 / CAUTION=8 / SKIP=15
+
+          銘柄          名前       前日終値      GD想定価格   ATR%    mom5  volTrend    フィル率        推奨
+  -----------------------------------------------------------------------------------------------
+      1605.T       INPEX    3,969.0     3,889.6    4.5    +0.5      0.71    50.0%   CAUTION
+    理由: mom5=+0.5%(上昇中)
+    NEWS: Middle East Ceasefire Buoys Asian Stock Markets
+    NEWS: Formentera and Inpex partner to develop Beetaloo gas resourc
+
+      1570.T     日経レバETF   57,970.0    56,810.6    3.5    -1.8      0.89    20.0%   CAUTION
+    理由: フィル率20%<30%
+
+      2413.T       エムスリー    1,479.0     1,449.4    3.4    -6.3      1.28    16.7%   CAUTION
+    理由: フィル率17%<30%
+    NEWS: Is M3’s Share Buyback Progress Revealing a Shift in Capital 
+
+      4568.T        第一三共    2,790.0     2,734.2    2.9    -3.4      0.91    33.3%   CAUTION
+    理由: ATR=2.9% / mom5=-3.4% / フィル率=33% / 直近ニュース5件
+    NEWS: Nuvation Bio (NUVB) Stock More Than Doubles Year-on-Year
+    NEWS: 5 Best Small-Cap Biotech Stocks According to Hedge Funds
+
+      4063.T        信越化学    6,664.0     6,530.7    2.7    -3.6      0.89    16.7%   CAUTION
+    理由: フィル率17%<30%
+    NEWS: Oil, Middle East Outlooks Undercut Asian Stock Markets
+    NEWS: The Next AI Stock Trade Starts With Makers of Chemicals and 
+
+      7203.T         トヨタ    3,123.0     3,060.5    2.5    -7.9      0.94    16.7%   CAUTION
+    理由: フィル率17%<30%
+    NEWS: Is It Time To Reassess Toyota Motor (TSE:7203) After Recent 
+    NEWS: Toyota Motor (TSE:7203) Is Down 5.6% After Aluminum Supply D
+
+      6758.T        ソニーG    3,263.0     3,197.7    2.5    -4.2      0.93    30.0%   CAUTION
+    理由: ATR=2.5% / mom5=-4.2% / フィル率=30% / 直近ニュース5件
+    NEWS: Sony Group (SONY): 8 Low Priced Stocks to Buy with Huge Upsi
+    NEWS: Is Sony Group (SONY) Among the 10 Best Global Stocks to Buy 
+
+      8306.T       三菱UFJ    2,752.0     2,697.0    2.3    -6.6      0.89    25.0%   CAUTION
+    理由: フィル率25%<30%
+    NEWS: Sweden's Modern Times unit PlaySimple files for $350 million
+    NEWS: JPMorgan Chase & Co. (JPM) Closing in on Record $38B Oracle 
+
+      9984.T     ソフトバンクG    5,837.0     5,720.3    5.0   +24.9      1.55     7.7%      SKIP
+    理由: フィル率低(8%<15%)
+
+      1357.T     日経ダブルイン    3,826.0     3,749.5    4.2    +1.6      0.81     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      8035.T    東京エレクトロン   45,480.0    44,570.4    3.6    -0.7      0.86     8.3%      SKIP
+    理由: フィル率低(8%<15%)
+
+      3382.T     セブン&iHD    1,948.0     1,909.0    3.2    -4.2      0.83     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      6098.T     リクルートHD    7,561.0     7,409.8    3.1    +3.9      1.17     7.7%      SKIP
+    理由: フィル率低(8%<15%)
+
+      5020.T       ENEOS    1,298.0     1,272.0    3.0    -7.7      0.80     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      7201.T       日産自動車      358.7       351.5    2.9    -3.0      0.90     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      3659.T        ネクソン    2,707.0     2,652.9    2.8    -3.3      0.69    14.3%      SKIP
+    理由: フィル率低(14%<15%)
+
+      6501.T          日立    5,203.0     5,098.9    2.7    -0.3      0.94     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      9101.T        日本郵船    5,807.0     5,690.9    2.7    -4.1      0.58     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      8411.T       みずほFG    6,482.0     6,352.4    2.6    -5.7      0.91     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      8604.T        野村HD    1,332.5     1,305.8    2.6    -4.0      0.75     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      7974.T         任天堂    8,220.0     8,055.6    2.5    -1.2      0.84     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      6902.T        デンソー    1,893.5     1,855.6    2.0    -1.2      0.82     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      5401.T        日本製鉄      580.1       568.5    1.4    -3.0      0.88    33.3%      SKIP
+    理由: ATR低(1.4%<1.5%)
+
