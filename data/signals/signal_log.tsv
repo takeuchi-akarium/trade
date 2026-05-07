@@ -4907,3 +4907,185 @@
       5401.T        日本製鉄      571.9       560.5    1.4    -1.4      1.25    33.3%      SKIP
     理由: ATR低(1.4%<1.5%)
 
+2026-05-08T07:34:59.935918+09:00	=== 日米リードラグ シグナル 2026-05-08(金) ===
+  （データ基準日: 2026-05-07(木)）
+
+■ 確信度: 中 (1.09) — ポジション控えめ推奨
+
+■ 本日の推奨ポジション
+【ロング（寄付き買い→引け売り）】
+  1627.T 電力・ガス      +0.8000 / +2.38% / +280.0円
+  1617.T 食品         +0.6250 / +1.04% / +460.0円
+  1630.T 小売         +0.5250 / +1.28% / +460.0円
+  1621.T 医薬品        +0.4500 / +1.35% / +410.0円
+  1624.T 機械         +0.4500 / +3.13% / +2840.0円
+  1620.T 素材・化学      +0.4000 / +3.81% / +1360.0円
+
+【ショート（様子見）】
+  1625.T 電気・精密      -0.3750 / +5.09% / +2880.0円
+  1628.T 運輸・物流      -0.4250 / +1.27% / +265.0円
+  1626.T 情報通信・サービス  -0.4500 / +4.37% / +1740.0円
+  1629.T 商社・卸売      -0.5250 / +0.39% / +1.1円
+  1631.T 銀行         -0.6250 / +2.78% / +920.0円
+  1618.T エネルギー資源    -0.9000 / -3.21% / -1170.0円
+
+■ 米国市場（前日）
+  Energy -4.1% / Technology +2.7% / Industrials +2.6% / Materials +1.7% / Consumer Discr. +1.5%
+  ファクター: グローバル: -0.119 / 国スプレッド: -1.858 / シクリカル: -0.151
+
+■ 実績
+  前日: +0.11% / 月次: -1.43% / 年初来: -17.43%
+========================================
+
+■ デュアルモメンタム (GEM)
+  判定: 米国株 → S&P 500 (SPY)
+  12ヶ月モメンタム: SPY +25.6% / EFA +20.0% / BIL +3.6%
+  相対モメンタム勝者: S&P 500
+
+■ BTC（前日）
+  現在値: $79,919 (-1.7%)
+  24h高値: $81,653 / 安値: $79,625
+
+■ マクロシグナル
+  判定: 中立 (HOLD)  スコア: +7
+  fear_greed: 47 (Neutral) (-6)
+  vix: 17.1 (+20)
+
+■ BTCファンダスコア
+  スコア: +0.83 → 強気 (Boost対象)
+  Gold: $4,705 (67d mom: +1.8%)
+  10Y: 4.39% (34d chg: +0.00)
+  FnG: 47 (7d avg: 42)
+
+■ 注目ニュース
+  [-70] Whirlpool says Iran war causing 'recession-level industry decline.' The shares are down 12% (CNBC Finance)
+    https://www.cnbc.com/2026/05/07/whirlpool-says-iran-war-causing-recession-level-industry-decline-the-shares-are-down-20percent.html
+  [-60] Planet Fitness stock plunges 30% after company slashes guidance, cancels planned price hikes (CNBC Finance)
+    https://www.cnbc.com/2026/05/07/planet-fitness-stock.html
+  [+50] A key sector has been AWOL from the stock-market rally. Investors should be worried. (MarketWatch)
+    https://www.marketwatch.com/story/a-key-sector-has-been-awol-from-the-stock-market-rally-investors-should-be-worried-43822eb5?mod=mw_rss_topstories
+
+■ 適時開示
+  [+150] 9997 ベルーナ 上方修正/増配
+    https://irbank.net/9997/140120260507517603
+  [+150] 3934 ベネフィットジャパン 上方修正/増配
+    https://irbank.net/3934/140120260430514779
+  [+150] 2060 フィード・ワン 上方修正/増配
+    https://irbank.net/2060/140120260427511443
+  [-120] 4679 田谷 無配/特別損失
+    https://irbank.net/4679/140120260428512629
+  [+85] 3823 THE WHY HOW DO COMPANY 株式交換対象 📌被買付
+    https://irbank.net/3823/140120260417505995
+
+■ 日本小型株 モメンタムTOP10
+  日経225: 59,513 (SMA200: 49,740) -> 上昇トレンド
+  (検査: 504銘柄 / 通過: 161銘柄)
+
+  順位  銘柄      株価      60日     20日    出来高
+  -------------------------------------------------------
+    1.    278A.T   12,850  +381.8%  +172.8%  1,304,380
+    2.    3449.T    5,220  +146.9%  +106.8%    178,675
+    3.    3294.T    4,850  +123.4%    +0.2%    105,755
+    4.    281A.T      757  +122.6%   +27.2%  2,963,940
+    5.    2962.T    1,083  +114.5%   +30.5%    160,930
+    6.    3441.T    2,523  +105.6%   +17.5%     63,360
+    7.    255A.T    6,000   +87.0%   +68.8%    138,095
+    8.    1407.T    2,860   +82.3%   +50.5%  1,094,645
+    9.    3192.T      500   +69.5%   +25.3%    506,375
+   10.    2780.T    5,390   +62.0%   +12.2%     81,245
+
+  新規: 2780.T
+  脱落: 3083.T
+
+■ 日本株 ギャップスキャン (GD候補)
+  生成: 2026-05-08 07:34:52 (GD閾値: -2.0%)
+  日経225: 59,513 (+0.38%) [上昇トレンド]
+  ドル円: 156.88 (-0.50%)
+  候補: ENTRY=0 / CAUTION=9 / SKIP=14
+
+          銘柄          名前       前日終値      GD想定価格   ATR%    mom5  volTrend    フィル率        推奨
+  -----------------------------------------------------------------------------------------------
+      4568.T        第一三共    2,600.0     2,548.0    4.9    +4.0      1.41    42.9%   CAUTION
+    理由: mom5=+4.0%(上昇中)
+    NEWS: Daiichi Sankyo and Waiv partner for ADC biomarkers
+    NEWS: A Look At Daiichi Sankyo Company (TSE:4568) Valuation As Onc
+
+      1605.T       INPEX    3,850.0     3,773.0    4.1    -5.5      0.82    37.5%   CAUTION
+    理由: ATR=4.1% / mom5=-5.5% / フィル率=38% / 直近ニュース5件
+    NEWS: Oil, AI Outlooks Buoy Asian Stock Markets
+    NEWS: A Look At Inpex’s (TSE:1605) Valuation After Recent Share Pr
+
+      2413.T       エムスリー    1,414.5     1,386.2    3.8    -5.7      1.75    16.7%   CAUTION
+    理由: フィル率17%<30%
+    NEWS: Is M3’s Share Buyback Progress Revealing a Shift in Capital 
+
+      1570.T     日経レバETF   65,520.0    64,209.6    3.5   +11.0      1.10    18.2%   CAUTION
+    理由: mom5=+11.0%(上昇中) / フィル率18%<30%
+
+      4063.T        信越化学    7,711.0     7,556.8    3.1   +13.9      1.41    20.0%   CAUTION
+    理由: mom5=+13.9%(上昇中) / フィル率20%<30%
+    NEWS: Oil, Middle East Outlooks Undercut Asian Stock Markets
+    NEWS: The Next AI Stock Trade Starts With Makers of Chemicals and 
+
+      3659.T        ネクソン    2,660.5     2,607.3    2.8    +0.2      1.03    16.7%   CAUTION
+    理由: mom5=+0.2%(上昇中) / フィル率17%<30%
+    NEWS: Middle East War Prospects Bouy Asian Stock Markets
+    NEWS: A Look At NEXON (TSE:3659) Valuation After Record 2025 Reven
+
+      6758.T        ソニーG    3,130.0     3,067.4    2.7    -2.4      1.44    33.3%   CAUTION
+    理由: ATR=2.7% / mom5=-2.4% / フィル率=33% / 直近ニュース5件
+    NEWS: Warner Bros. Discovery Q1 Earnings Miss Estimates, Revenues 
+    NEWS: Sector Update: Consumer Stocks Rise Late Afternoon
+
+      7203.T         トヨタ    2,978.0     2,918.4    2.5    -2.9      1.40    20.0%   CAUTION
+    理由: フィル率20%<30%
+    NEWS: Earnings live updates: Airbnb raises revenue forecast, even 
+    NEWS: Toyota, Honda report weaker US sales in April, YTD
+
+      8306.T       三菱UFJ    2,863.0     2,805.7    2.4    +3.9      1.13    25.0%   CAUTION
+    理由: mom5=+3.9%(上昇中) / フィル率25%<30%
+    NEWS: Gold Extends Gains as Falling Oil Eases Inflation Risk
+    NEWS: CoreWeave’s Chip-Backed Loan Racks Up $19 Billion of Demand
+
+      9984.T     ソフトバンクG    6,424.0     6,295.5    6.7    +7.7      1.30     7.1%      SKIP
+    理由: フィル率低(7%<15%)
+
+      1357.T     日経ダブルイン    3,330.0     3,263.4    4.5   -11.4      0.96     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      8035.T    東京エレクトロン   51,720.0    50,685.6    3.7   +12.8      1.35     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      6501.T          日立    4,850.0     4,753.0    3.6    -7.2      1.57     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      6098.T     リクルートHD    7,475.0     7,325.5    3.4    +2.3      1.27     7.1%      SKIP
+    理由: フィル率低(7%<15%)
+
+      8604.T        野村HD    1,250.5     1,225.5    3.4    -4.7      1.66     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      7201.T       日産自動車      351.8       344.8    3.1    -0.3      1.25     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      8411.T       みずほFG    6,926.0     6,787.5    2.9    +7.8      1.26     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      7974.T         任天堂    7,404.0     7,255.9    2.8    -6.9      1.26     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      6902.T        デンソー    1,914.5     1,876.2    2.8    +2.5      1.86     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      3382.T     セブン&iHD    1,893.0     1,855.1    2.7    -1.1      1.06     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      5020.T       ENEOS    1,311.0     1,284.8    2.7    +0.9      1.13     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      9101.T        日本郵船    5,660.0     5,546.8    2.5    -3.6      1.07     0.0%      SKIP
+    理由: フィル率低(0%<15%)
+
+      5401.T        日本製鉄      582.7       571.0    1.4    +1.7      1.35    33.3%      SKIP
+    理由: ATR低(1.4%<1.5%)
+
