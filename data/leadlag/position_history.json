@@ -3954,5 +3954,110 @@
       }
     ],
     "confidence": 1.05
+  },
+  {
+    "date": "2026-05-18 00:00:00",
+    "timestamp": "2026-05-18T22:30:43.729978",
+    "long": [
+      {
+        "ticker": "1618.T",
+        "name": "エネルギー資源",
+        "score": 0.875,
+        "prevReturn": -1.54,
+        "close": 35830.0,
+        "prevChange": -560.0
+      },
+      {
+        "ticker": "1631.T",
+        "name": "銀行",
+        "score": 0.825,
+        "prevReturn": 0.03,
+        "close": 34450.0,
+        "prevChange": 10.0
+      },
+      {
+        "ticker": "1629.T",
+        "name": "商社・卸売",
+        "score": 0.775,
+        "prevReturn": -3.61,
+        "close": 286.1,
+        "prevChange": -10.7
+      },
+      {
+        "ticker": "1625.T",
+        "name": "電気・精密",
+        "score": 0.5,
+        "prevReturn": 0.28,
+        "close": 60340.0,
+        "prevChange": 170.0
+      },
+      {
+        "ticker": "1626.T",
+        "name": "情報通信・サービス",
+        "score": 0.5,
+        "prevReturn": 0.95,
+        "close": 41250.0,
+        "prevChange": 390.0
+      },
+      {
+        "ticker": "1632.T",
+        "name": "金融(除く銀行)",
+        "score": 0.4,
+        "prevReturn": -0.55,
+        "close": 39590.0,
+        "prevChange": -220.0
+      }
+    ],
+    "short": [
+      {
+        "ticker": "1633.T",
+        "name": "不動産",
+        "score": -0.4,
+        "prevReturn": -3.66,
+        "close": 51030.0,
+        "prevChange": -1940.0
+      },
+      {
+        "ticker": "1624.T",
+        "name": "機械",
+        "score": -0.55,
+        "prevReturn": -1.43,
+        "close": 87250.0,
+        "prevChange": -1270.0
+      },
+      {
+        "ticker": "1630.T",
+        "name": "小売",
+        "score": -0.6,
+        "prevReturn": -1.17,
+        "close": 35420.0,
+        "prevChange": -420.0
+      },
+      {
+        "ticker": "1621.T",
+        "name": "医薬品",
+        "score": -0.625,
+        "prevReturn": -0.26,
+        "close": 30270.0,
+        "prevChange": -80.0
+      },
+      {
+        "ticker": "1617.T",
+        "name": "食品",
+        "score": -0.675,
+        "prevReturn": 0.4,
+        "close": 45690.0,
+        "prevChange": 180.0
+      },
+      {
+        "ticker": "1627.T",
+        "name": "電力・ガス",
+        "score": -0.875,
+        "prevReturn": -1.64,
+        "close": 11710.0,
+        "prevChange": -195.0
+      }
+    ],
+    "confidence": 1.27
   }
 ]
